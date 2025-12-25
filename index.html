@@ -132,11 +132,6 @@
                     <li><a :class="{ active: currentView === 'analysis' }" @click="currentView = 'analysis'; sidebarOpen = false">
                         <i data-lucide="scan" class="w-4 h-4"></i> 製程拆解
                     </a></li>
-                    <li class="tooltip tooltip-right" data-tip="已整合至製程拆解">
-                        <a class="opacity-60" @click="currentView = 'analysis'; sidebarOpen = false">
-                            <i data-lucide="split" class="w-4 h-4"></i> 分段管理
-                        </a>
-                    </li>
                     <li><a :class="{ active: currentView === 'learning' }" @click="currentView = 'learning'; sidebarOpen = false">
                         <i data-lucide="brain" class="w-4 h-4"></i> 學習分析
                     </a></li>
@@ -475,10 +470,15 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- 新增分段按鈕 -->
-                                <button class="btn btn-outline btn-sm w-full mt-3" @click="addAnalysisSegment">
-                                    <i data-lucide="plus" class="w-4 h-4"></i> 新增分段
-                                </button>
+                                <!-- 操作按鈕 -->
+                                <div class="flex gap-2 mt-3">
+                                    <button class="btn btn-outline btn-sm flex-1" @click="addAnalysisSegment">
+                                        <i data-lucide="plus" class="w-4 h-4"></i> 新增分段
+                                    </button>
+                                    <button v-show="hasSegmentChanges" class="btn btn-ghost btn-sm" @click="resetAnalysisSegments" title="重置為原始分析結果">
+                                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 重置
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -999,8 +999,10 @@
 
                 // Analysis state - 簡化版
                 const isAnalyzing = ref(false);
-                const displaySegments = ref([]);  // 顯示用的分段資料
+                const displaySegments = ref([]);  // 顯示用的分段資料 (可編輯)
                 const displayCycleTime = ref(0);  // 顯示用的週期時間
+                const originalSegments = ref([]); // 原始分析結果 (用於重置)
+                const originalCycleTime = ref(0);
 
                 // 計算顯示狀態
                 const analysisDisplayState = computed(() => {
@@ -1370,8 +1372,13 @@
                             : [];
 
                         // 設定顯示資料
-                        displayCycleTime.value = Number(data.data.results.cycle_time) || 0;
+                        const cycleTime = Number(data.data.results.cycle_time) || 0;
+                        displayCycleTime.value = cycleTime;
                         displaySegments.value = segments;
+
+                        // 儲存原始值 (用於重置)
+                        originalCycleTime.value = cycleTime;
+                        originalSegments.value = JSON.parse(JSON.stringify(segments));
 
                         // 更新影片狀態
                         const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
@@ -1568,6 +1575,19 @@
                     });
                     displayCycleTime.value = Math.round(currentTime * 10) / 10;
                 };
+
+                // 重置分段到原始分析結果
+                const resetAnalysisSegments = () => {
+                    if (originalSegments.value.length === 0) return;
+                    displaySegments.value = JSON.parse(JSON.stringify(originalSegments.value));
+                    displayCycleTime.value = originalCycleTime.value;
+                };
+
+                // 檢查是否有修改
+                const hasSegmentChanges = computed(() => {
+                    if (originalSegments.value.length === 0) return false;
+                    return JSON.stringify(displaySegments.value) !== JSON.stringify(originalSegments.value);
+                });
 
                 // 統一儲存函數 - 根據模式決定儲存到哪裡
                 const handleSegmentSave = () => {
@@ -1937,6 +1957,8 @@
                     deleteAnalysisSegment,
                     addAnalysisSegment,
                     handleSegmentSave,
+                    resetAnalysisSegments,
+                    hasSegmentChanges,
                     // Methods
                     refreshDashboard,
                     handleFileSelect,
