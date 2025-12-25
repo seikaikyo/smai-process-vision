@@ -46,13 +46,27 @@ AI-powered manufacturing process analysis system using YOLO11 object detection.
 ### Dashboard | 儀表板 | ダッシュボード
 Overview of all analyzed videos and statistics.
 
+![Dashboard](docs/screenshot-dashboard.png)
+
+### Video Management | 影片管理 | 動画管理
+Upload and manage manufacturing process videos.
+
+![Videos](docs/screenshot-videos.png)
+
 ### Process Analysis | 製程拆解 | 工程分析
-- Video preview with segment timeline
-- Edit, delete, add segments
-- Save corrections to database
+AI-powered segment detection with visual timeline editor.
+
+![Analysis](docs/screenshot-analysis.png)
+
+### Learning Analytics | 學習分析 | 学習分析
+Statistical analysis and trend detection for continuous improvement.
+
+![Learning](docs/screenshot-learning.png)
 
 ### Comparison | 改善比對 | 改善比較
 Side-by-side comparison of before/after processes.
+
+![Comparison](docs/screenshot-comparison.png)
 
 ---
 
