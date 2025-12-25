@@ -105,15 +105,12 @@
         </div>
 
         <!-- Sidebar Overlay -->
-        <div v-if="sidebarOpen" @click="sidebarOpen = false"
-             class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
+        <div v-show="sidebarOpen" @click="sidebarOpen = false"
+             class="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"></div>
 
         <!-- Sidebar -->
-        <aside :class="[
-            'w-64 bg-base-100 border-r border-base-300 flex flex-col shrink-0 z-50',
-            'fixed md:relative h-full transition-transform duration-300',
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        ]">
+        <aside class="w-64 bg-base-100 border-r border-base-300 flex-col shrink-0 z-50 fixed md:relative h-full transition-transform duration-300"
+               :class="sidebarOpen ? 'flex' : 'hidden md:flex'">
             <div class="p-5 text-xl font-bold text-primary flex items-center border-b border-base-200">
                 <i data-lucide="scan-eye" class="mr-2 w-6 h-6"></i>
                 Process Vision
