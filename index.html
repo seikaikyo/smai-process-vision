@@ -1317,24 +1317,29 @@
                                 : []
                         };
 
-                        // 批次更新所有狀態 - 使用 requestAnimationFrame 確保在同一幀
-                        requestAnimationFrame(() => {
-                            isAnalyzing.value = false;
-                            currentAnalysis.value = results;
+                        // 先停止分析狀態
+                        isAnalyzing.value = false;
 
-                            // 更新本地影片狀態
-                            const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
-                            if (videoIdx !== -1) {
-                                videos.value[videoIdx].status = 'analyzed';
-                                videos.value[videoIdx].statusBadge = 'badge-success';
-                            }
+                        // 等待 Vue 完成 DOM 更新
+                        await nextTick();
 
-                            // 延遲更新統計和圖標
-                            setTimeout(() => {
-                                refreshDashboard();
-                                updateIcons();
-                            }, 50);
-                        });
+                        // 設定分析結果
+                        currentAnalysis.value = results;
+
+                        // 等待 Vue 完成 DOM 更新
+                        await nextTick();
+
+                        // 更新本地影片狀態
+                        const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
+                        if (videoIdx !== -1) {
+                            videos.value[videoIdx].status = 'analyzed';
+                            videos.value[videoIdx].statusBadge = 'badge-success';
+                        }
+
+                        // 更新統計和圖標
+                        await nextTick();
+                        refreshDashboard();
+                        updateIcons();
 
                     } catch (e) {
                         console.error('分析失敗:', e);
