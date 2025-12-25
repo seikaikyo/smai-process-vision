@@ -106,6 +106,6 @@ MIT License
 
 ## Author | 作者 | 著者
 
-**Dash Lin** - [GitHub](https://github.com/seikaikyo)
+**Dash Kyo** - [GitHub](https://github.com/seikaikyo)
 
 Built with Claude Code
