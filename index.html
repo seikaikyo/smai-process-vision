@@ -410,17 +410,19 @@
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body">
                             <h2 class="card-title text-sm font-bold">分析結果</h2>
-                            <!-- Empty State -->
-                            <div v-if="!currentAnalysis" class="text-center py-8 opacity-60">
-                                <i data-lucide="scan" class="w-12 h-12 mx-auto mb-2"></i>
+                            <!-- Empty State - 使用 v-show 避免 DOM 衝突 -->
+                            <div v-show="!currentAnalysis" class="text-center py-8 opacity-60">
+                                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
                                 <p>選擇影片後點擊「開始分析」</p>
                             </div>
-                            <!-- Results -->
-                            <template v-if="currentAnalysis">
+                            <!-- Results - 使用 v-show 避免 DOM 衝突 -->
+                            <div v-show="currentAnalysis">
                                 <div class="stats shadow w-full mb-4">
                                     <div class="stat">
                                         <div class="stat-title">週期時間</div>
-                                        <div class="stat-value text-primary">{{ currentAnalysis.cycleTime || 0 }}s</div>
+                                        <div class="stat-value text-primary">{{ analysisCycleTime }}s</div>
                                     </div>
                                     <div class="stat">
                                         <div class="stat-title">分段數</div>
@@ -430,7 +432,7 @@
 
                                 <!-- Segments List -->
                                 <div class="space-y-2 max-h-64 overflow-y-auto">
-                                    <div v-for="(seg, idx) in analysisSegments" :key="'seg-'+idx"
+                                    <div v-for="(seg, idx) in analysisSegments" :key="'seg-'+seg.name+'-'+idx"
                                          class="flex items-center gap-3 p-2 bg-base-200 rounded-lg cursor-pointer hover:bg-base-300"
                                          @click="jumpToSegment(seg)">
                                         <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
@@ -447,20 +449,20 @@
                                         </div>
                                     </div>
                                 </div>
-                            </template>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Segments Timeline -->
-                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="currentAnalysis && analysisSegments.length > 0">
+                <!-- Segments Timeline - 使用 v-show -->
+                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-show="currentAnalysis && analysisSegments.length > 0">
                     <div class="card-body">
                         <div class="flex justify-between items-center mb-2">
                             <h2 class="card-title text-sm font-bold">製程分段時間軸</h2>
                             <span class="text-xs opacity-60">拖動分段邊界調整時間</span>
                         </div>
                         <div class="segment-bar mt-4" ref="timelineRef">
-                            <div v-for="(seg, idx) in analysisSegments" :key="'tl-'+idx"
+                            <div v-for="(seg, idx) in analysisSegments" :key="'tl-'+seg.name+'-'+idx"
                                  class="segment-item relative"
                                  :style="{
                                      width: getSegmentPercent(seg) + '%',
@@ -469,7 +471,7 @@
                                  @click="jumpToSegment(seg)">
                                 <span class="truncate px-1">{{ seg.name }}</span>
                                 <!-- 右側拖動手把 (除了最後一個) -->
-                                <div v-if="idx < analysisSegments.length - 1"
+                                <div v-show="idx < analysisSegments.length - 1"
                                      class="segment-resize-handle right"
                                      @mousedown.stop="startResize($event, idx)"
                                      @touchstart.stop.prevent="startResize($event, idx)">
@@ -478,11 +480,11 @@
                         </div>
                         <div class="flex justify-between mt-2 text-xs opacity-60">
                             <span>0s</span>
-                            <span>{{ currentAnalysis.cycleTime || 0 }}s</span>
+                            <span>{{ analysisCycleTime }}s</span>
                         </div>
                         <!-- 分段詳細時間 -->
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
-                            <div v-for="(seg, idx) in analysisSegments" :key="'detail-'+idx"
+                            <div v-for="(seg, idx) in analysisSegments" :key="'detail-'+seg.name+'-'+idx"
                                  class="flex items-center gap-2 text-xs">
                                 <div class="w-3 h-3 rounded-full shrink-0"
                                      :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }"></div>
@@ -1023,6 +1025,10 @@
                     return currentAnalysis.value.segments;
                 });
                 const analysisSegmentCount = computed(() => analysisSegments.value.length);
+                const analysisCycleTime = computed(() => {
+                    if (!currentAnalysis.value) return 0;
+                    return currentAnalysis.value.cycleTime || 0;
+                });
 
                 const getSegmentPercent = (seg) => {
                     if (!currentAnalysis.value || !currentAnalysis.value.cycleTime || currentAnalysis.value.cycleTime === 0) return 0;
@@ -1336,10 +1342,9 @@
                             videos.value[videoIdx].statusBadge = 'badge-success';
                         }
 
-                        // 更新統計和圖標
+                        // 更新統計 (不呼叫 updateIcons 避免 DOM 衝突)
                         await nextTick();
                         refreshDashboard();
-                        updateIcons();
 
                     } catch (e) {
                         console.error('分析失敗:', e);
@@ -1707,6 +1712,7 @@
                     currentAnalysis,
                     analysisSegments,
                     analysisSegmentCount,
+                    analysisCycleTime,
                     beforeVideoId,
                     afterVideoId,
                     beforeAnalysis,
