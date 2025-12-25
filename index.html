@@ -132,9 +132,11 @@
                     <li><a :class="{ active: currentView === 'analysis' }" @click="currentView = 'analysis'; sidebarOpen = false">
                         <i data-lucide="scan" class="w-4 h-4"></i> 製程拆解
                     </a></li>
-                    <li><a :class="{ active: currentView === 'segments' }" @click="currentView = 'segments'; sidebarOpen = false">
-                        <i data-lucide="split" class="w-4 h-4"></i> 分段管理
-                    </a></li>
+                    <li class="tooltip tooltip-right" data-tip="已整合至製程拆解">
+                        <a :class="{ active: currentView === 'analysis' }" @click="currentView = 'analysis'; sidebarOpen = false">
+                            <i data-lucide="split" class="w-4 h-4"></i> 分段管理
+                        </a>
+                    </li>
                     <li><a :class="{ active: currentView === 'learning' }" @click="currentView = 'learning'; sidebarOpen = false">
                         <i data-lucide="brain" class="w-4 h-4"></i> 學習分析
                     </a></li>
@@ -449,22 +451,34 @@
                                 <!-- 分段列表 -->
                                 <div class="space-y-2 max-h-64 overflow-y-auto">
                                     <div v-for="(seg, idx) in displaySegments" :key="'seg-' + idx"
-                                         class="flex items-center gap-3 p-2 bg-base-200 rounded-lg cursor-pointer hover:bg-base-300"
+                                         class="flex items-center gap-2 p-2 bg-base-200 rounded-lg cursor-pointer hover:bg-base-300"
                                          @click="jumpToSegment(seg)">
-                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
                                              :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }">
                                             {{ idx + 1 }}
                                         </div>
-                                        <div class="flex-1">
-                                            <div class="font-semibold">{{ seg.name }}</div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-semibold text-sm truncate">{{ seg.name }}</div>
                                             <div class="text-xs opacity-60">{{ seg.start.toFixed(1) }}s - {{ seg.end.toFixed(1) }}s</div>
                                         </div>
-                                        <div class="text-right">
-                                            <div class="font-mono font-bold">{{ seg.duration.toFixed(1) }}s</div>
+                                        <div class="text-right shrink-0">
+                                            <div class="font-mono font-bold text-sm">{{ seg.duration.toFixed(1) }}s</div>
                                             <div class="text-xs opacity-60">{{ displayCycleTime > 0 ? Math.round(seg.duration / displayCycleTime * 100) : 0 }}%</div>
+                                        </div>
+                                        <div class="flex gap-1 shrink-0">
+                                            <button class="btn btn-ghost btn-xs" @click.stop="editAnalysisSegment(seg, idx)" title="編輯">
+                                                <i data-lucide="edit" class="w-3 h-3"></i>
+                                            </button>
+                                            <button class="btn btn-ghost btn-xs text-error" @click.stop="deleteAnalysisSegment(idx)" title="刪除">
+                                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
+                                <!-- 新增分段按鈕 -->
+                                <button class="btn btn-outline btn-sm w-full mt-3" @click="addAnalysisSegment">
+                                    <i data-lucide="plus" class="w-4 h-4"></i> 新增分段
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -479,15 +493,22 @@
                         </div>
                         <div class="segment-bar mt-4" ref="timelineRef">
                             <div v-for="(seg, idx) in displaySegments" :key="'tl-' + idx"
-                                 class="segment-item"
+                                 class="segment-item relative"
                                  :style="{
                                      width: (displayCycleTime > 0 ? seg.duration / displayCycleTime * 100 : 0) + '%',
                                      backgroundColor: segmentColors[idx % segmentColors.length]
                                  }"
                                  @click="jumpToSegment(seg)">
                                 <span class="truncate px-1">{{ seg.name }}</span>
+                                <!-- 拖拉把手 (不是最後一個才顯示) -->
+                                <div v-if="idx < displaySegments.length - 1"
+                                     class="segment-resize-handle right"
+                                     @mousedown.stop="startSegmentResize($event, idx)"
+                                     @touchstart.stop="startSegmentResize($event, idx)">
+                                </div>
                             </div>
                         </div>
+                        <div class="text-xs opacity-50 mt-1 text-center">拖拉分段邊界調整時間</div>
                         <div class="flex justify-between mt-2 text-xs opacity-60">
                             <span>0s</span>
                             <span>{{ displayCycleTime }}s</span>
@@ -908,7 +929,9 @@
                 </div>
                 <div class="modal-action">
                     <button class="btn" @click="closeSegmentModal">取消</button>
-                    <button class="btn btn-primary" @click="saveSegmentTemplate">{{ editingSegmentId ? '儲存' : '新增' }}</button>
+                    <button class="btn btn-primary" @click="handleSegmentSave">
+                        {{ (editingSegmentId || editingAnalysisSegmentIdx >= 0) ? '儲存' : '新增' }}
+                    </button>
                 </div>
             </div>
             <form method="dialog" class="modal-backdrop" @click="closeSegmentModal">
@@ -1482,6 +1505,136 @@
                     }
                 };
 
+                // ========== 分析頁面分段編輯 ==========
+                const editingAnalysisSegmentIdx = ref(-1);
+
+                const editAnalysisSegment = (seg, idx) => {
+                    editingAnalysisSegmentIdx.value = idx;
+                    editingSegmentId.value = null; // 清除 API 編輯模式
+                    newSegment.name = seg.name;
+                    newSegment.standardTime = seg.duration;
+                    newSegment.tolerance = 1;
+                    newSegment.keyActionsText = '';
+                    showSegmentModal.value = true;
+                };
+
+                const deleteAnalysisSegment = (idx) => {
+                    const seg = displaySegments.value[idx];
+                    if (!confirm(`確定刪除「${seg.name}」？`)) return;
+                    displaySegments.value.splice(idx, 1);
+                    recalculateSegmentTimes();
+                    updateIcons();
+                };
+
+                const addAnalysisSegment = () => {
+                    editingAnalysisSegmentIdx.value = -1;
+                    editingSegmentId.value = null;
+                    newSegment.name = '';
+                    newSegment.standardTime = 5;
+                    newSegment.tolerance = 1;
+                    newSegment.keyActionsText = '';
+                    showSegmentModal.value = true;
+                };
+
+                const saveAnalysisSegment = () => {
+                    if (editingAnalysisSegmentIdx.value >= 0) {
+                        // 編輯現有
+                        const seg = displaySegments.value[editingAnalysisSegmentIdx.value];
+                        seg.name = newSegment.name;
+                        seg.duration = newSegment.standardTime;
+                    } else {
+                        // 新增到最後
+                        const lastSeg = displaySegments.value[displaySegments.value.length - 1];
+                        const newStart = lastSeg ? lastSeg.end : 0;
+                        displaySegments.value.push({
+                            name: newSegment.name,
+                            start: newStart,
+                            end: newStart + newSegment.standardTime,
+                            duration: newSegment.standardTime
+                        });
+                    }
+                    recalculateSegmentTimes();
+                    closeSegmentModal();
+                    editingAnalysisSegmentIdx.value = -1;
+                    updateIcons();
+                };
+
+                const recalculateSegmentTimes = () => {
+                    let currentTime = 0;
+                    displaySegments.value.forEach(seg => {
+                        seg.start = currentTime;
+                        seg.end = currentTime + seg.duration;
+                        currentTime = seg.end;
+                    });
+                    displayCycleTime.value = Math.round(currentTime * 10) / 10;
+                };
+
+                // 統一儲存函數 - 根據模式決定儲存到哪裡
+                const handleSegmentSave = () => {
+                    // 分析頁面模式 (editingAnalysisSegmentIdx >= 0 或新增時 editingSegmentId 為 null 且在 analysis 頁面)
+                    if (editingAnalysisSegmentIdx.value >= 0 || (currentView.value === 'analysis' && !editingSegmentId.value)) {
+                        saveAnalysisSegment();
+                    } else {
+                        // 分段管理頁面模式 (API 模式)
+                        saveSegmentTemplate();
+                    }
+                };
+
+                // ========== 時間軸拖拉調整 ==========
+                const startSegmentResize = (e, segmentIdx) => {
+                    if (displaySegments.value.length === 0 || !timelineRef.value) return;
+
+                    isResizing = true;
+                    resizeSegmentIdx = segmentIdx;
+                    resizeStartX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+
+                    document.addEventListener('mousemove', doSegmentResize);
+                    document.addEventListener('mouseup', endSegmentResize);
+                    document.addEventListener('touchmove', doSegmentResize, { passive: false });
+                    document.addEventListener('touchend', endSegmentResize);
+                    document.body.style.cursor = 'ew-resize';
+                    document.body.style.userSelect = 'none';
+                };
+
+                const doSegmentResize = (e) => {
+                    if (!isResizing || resizeSegmentIdx < 0) return;
+
+                    e.preventDefault();
+                    const currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                    const deltaX = currentX - resizeStartX;
+                    resizeStartX = currentX;
+
+                    const timelineWidth = timelineRef.value.offsetWidth;
+                    const cycleTime = displayCycleTime.value;
+                    const deltaTime = (deltaX / timelineWidth) * cycleTime;
+
+                    const current = displaySegments.value[resizeSegmentIdx];
+                    const next = displaySegments.value[resizeSegmentIdx + 1];
+
+                    if (!current || !next) return;
+
+                    const newCurrentDuration = current.duration + deltaTime;
+                    const newNextDuration = next.duration - deltaTime;
+
+                    if (newCurrentDuration >= 0.5 && newNextDuration >= 0.5) {
+                        current.duration = Math.round(newCurrentDuration * 10) / 10;
+                        current.end = Math.round((current.start + current.duration) * 10) / 10;
+                        next.duration = Math.round(newNextDuration * 10) / 10;
+                        next.start = current.end;
+                    }
+                };
+
+                const endSegmentResize = () => {
+                    isResizing = false;
+                    resizeSegmentIdx = -1;
+                    document.removeEventListener('mousemove', doSegmentResize);
+                    document.removeEventListener('mouseup', endSegmentResize);
+                    document.removeEventListener('touchmove', doSegmentResize);
+                    document.removeEventListener('touchend', endSegmentResize);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                };
+
                 // Load learning stats from API
                 const loadLearningStats = async () => {
                     try {
@@ -1777,7 +1930,13 @@
                     segmentListRef,
                     // Timeline resize
                     timelineRef,
-                    startResize,
+                    startSegmentResize,
+                    // Analysis segment editing
+                    editingAnalysisSegmentIdx,
+                    editAnalysisSegment,
+                    deleteAnalysisSegment,
+                    addAnalysisSegment,
+                    handleSegmentSave,
                     // Methods
                     refreshDashboard,
                     handleFileSelect,
