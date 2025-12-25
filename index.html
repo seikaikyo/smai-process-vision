@@ -135,6 +135,9 @@
                     <li><a :class="{ active: currentView === 'segments' }" @click="currentView = 'segments'; sidebarOpen = false">
                         <i data-lucide="split" class="w-4 h-4"></i> 分段管理
                     </a></li>
+                    <li><a :class="{ active: currentView === 'learning' }" @click="currentView = 'learning'; sidebarOpen = false">
+                        <i data-lucide="brain" class="w-4 h-4"></i> 學習分析
+                    </a></li>
                     <li><a :class="{ active: currentView === 'comparison' }" @click="currentView = 'comparison'; sidebarOpen = false">
                         <i data-lucide="git-compare" class="w-4 h-4"></i> 改善比對
                     </a></li>
@@ -565,6 +568,146 @@
                 </div>
             </section>
 
+            <!-- Learning Analysis -->
+            <section v-if="currentView === 'learning'" class="animate-fade-in">
+                <header class="flex justify-between items-center mb-6">
+                    <div>
+                        <div class="text-sm breadcrumbs p-0 mb-1">
+                            <ul><li><a>製程分析</a></li><li>學習分析</li></ul>
+                        </div>
+                        <h1 class="text-2xl font-bold">製程學習分析</h1>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-ghost btn-sm" @click="loadLearningStats">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> 重新整理
+                        </button>
+                        <button class="btn btn-primary btn-sm" @click="applyAllLearning" :disabled="!hasEnoughSamples">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i> 套用學習結果
+                        </button>
+                    </div>
+                </header>
+
+                <div class="alert alert-info shadow-sm mb-6 bg-info/10 border-info/20">
+                    <i data-lucide="brain" class="w-5 h-5"></i>
+                    <span>系統自動學習每次分析的實際時間，累積足夠樣本後可自動調整標準時間</span>
+                </div>
+
+                <!-- Learning Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="(item, idx) in learningStats" :key="item.templateId"
+                         class="card bg-base-100 shadow-sm border border-base-300">
+                        <div class="card-body p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                                     :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }">
+                                    {{ idx + 1 }}
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-bold">{{ item.segmentName }}</h3>
+                                    <div class="text-xs opacity-60">
+                                        標準: {{ item.standardTime }}s | 容差: {{ item.tolerance }}s
+                                    </div>
+                                </div>
+                                <!-- Trend Indicator -->
+                                <div v-if="item.stats" class="tooltip" :data-tip="getTrendTooltip(item.stats.trend)">
+                                    <span v-if="item.stats.trend === 'improving'" class="badge badge-success gap-1">
+                                        <i data-lucide="trending-down" class="w-3 h-3"></i> 進步
+                                    </span>
+                                    <span v-else-if="item.stats.trend === 'declining'" class="badge badge-error gap-1">
+                                        <i data-lucide="trending-up" class="w-3 h-3"></i> 退步
+                                    </span>
+                                    <span v-else class="badge badge-ghost gap-1">
+                                        <i data-lucide="minus" class="w-3 h-3"></i> 穩定
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Stats -->
+                            <div v-if="item.stats && item.stats.sampleCount > 0" class="space-y-3">
+                                <!-- Sample Count -->
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="opacity-60">樣本數</span>
+                                    <span class="font-mono font-bold">{{ item.stats.sampleCount }}</span>
+                                </div>
+
+                                <!-- Average Duration -->
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="opacity-60">平均時間</span>
+                                    <span class="font-mono font-bold text-primary">{{ item.stats.avgDuration }}s</span>
+                                </div>
+
+                                <!-- Min/Max -->
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="opacity-60">範圍</span>
+                                    <span class="font-mono">{{ item.stats.minDuration }}s - {{ item.stats.maxDuration }}s</span>
+                                </div>
+
+                                <!-- Standard Deviation -->
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="opacity-60">標準差</span>
+                                    <span class="font-mono">{{ item.stats.stdDeviation }}s</span>
+                                </div>
+
+                                <!-- Deviation from Standard -->
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="opacity-60">與標準差距</span>
+                                    <span class="font-mono" :class="getDeviationClass(item.stats.avgDuration, item.standardTime)">
+                                        {{ ((item.stats.avgDuration - item.standardTime) / item.standardTime * 100).toFixed(1) }}%
+                                    </span>
+                                </div>
+
+                                <!-- Apply Button -->
+                                <button v-if="item.stats.sampleCount >= 3"
+                                        class="btn btn-sm btn-outline btn-primary w-full mt-2"
+                                        @click="applySingleLearning(item)">
+                                    <i data-lucide="check" class="w-3 h-3"></i>
+                                    套用 {{ item.stats.avgDuration }}s 為新標準
+                                </button>
+                            </div>
+
+                            <!-- No Data -->
+                            <div v-else class="text-center py-4 opacity-60">
+                                <i data-lucide="database" class="w-8 h-8 mx-auto mb-2"></i>
+                                <p class="text-sm">尚無學習資料</p>
+                                <p class="text-xs">分析更多影片以累積樣本</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-if="learningStats.length === 0" class="col-span-full text-center py-12 opacity-60">
+                        <i data-lucide="brain" class="w-12 h-12 mx-auto mb-4"></i>
+                        <p>尚無學習統計資料</p>
+                        <p class="text-sm">請先新增分段定義並分析影片</p>
+                    </div>
+                </div>
+
+                <!-- Learning Summary -->
+                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="learningStats.length > 0">
+                    <div class="card-body">
+                        <h2 class="card-title text-sm font-bold mb-4">學習統計總覽</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="stat bg-base-200 rounded-lg p-3">
+                                <div class="stat-title text-xs">總樣本數</div>
+                                <div class="stat-value text-lg text-primary">{{ totalSamples }}</div>
+                            </div>
+                            <div class="stat bg-base-200 rounded-lg p-3">
+                                <div class="stat-title text-xs">可套用分段</div>
+                                <div class="stat-value text-lg text-success">{{ applicableSegments }}</div>
+                            </div>
+                            <div class="stat bg-base-200 rounded-lg p-3">
+                                <div class="stat-title text-xs">進步中分段</div>
+                                <div class="stat-value text-lg text-info">{{ improvingSegments }}</div>
+                            </div>
+                            <div class="stat bg-base-200 rounded-lg p-3">
+                                <div class="stat-title text-xs">需注意分段</div>
+                                <div class="stat-value text-lg text-warning">{{ decliningSegments }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Comparison -->
             <section v-if="currentView === 'comparison'" class="animate-fade-in">
                 <header class="flex justify-between items-center mb-6">
@@ -854,6 +997,9 @@
                 const beforeAnalysis = ref(null);
                 const afterAnalysis = ref(null);
 
+                // Learning stats
+                const learningStats = ref([]);
+
                 const newSegment = reactive({
                     name: '',
                     standardTime: 5,
@@ -868,6 +1014,21 @@
 
                 // Computed
                 const analyzedVideos = computed(() => videos.value.filter(v => v.status === 'analyzed'));
+
+                // Learning computed
+                const totalSamples = computed(() =>
+                    learningStats.value.reduce((sum, item) => sum + (item.stats?.sampleCount || 0), 0)
+                );
+                const applicableSegments = computed(() =>
+                    learningStats.value.filter(item => item.stats && item.stats.sampleCount >= 3).length
+                );
+                const improvingSegments = computed(() =>
+                    learningStats.value.filter(item => item.stats?.trend === 'improving').length
+                );
+                const decliningSegments = computed(() =>
+                    learningStats.value.filter(item => item.stats?.trend === 'declining').length
+                );
+                const hasEnoughSamples = computed(() => applicableSegments.value > 0);
 
                 // Methods
                 const updateIcons = () => {
@@ -1236,6 +1397,92 @@
                     }
                 };
 
+                // Load learning stats from API
+                const loadLearningStats = async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/pv/learning/stats`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.data) {
+                                learningStats.value = data.data;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('載入學習統計失敗:', e);
+                        learningStats.value = [];
+                    }
+                    updateIcons();
+                };
+
+                // Apply single learning result
+                const applySingleLearning = async (item) => {
+                    if (!confirm(`確定要將「${item.segmentName}」的標準時間更新為 ${item.stats.avgDuration}s 嗎？`)) return;
+
+                    try {
+                        const response = await fetch(`${API_BASE}/pv/learning/apply`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ templateId: item.templateId })
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success) {
+                                alert(data.message);
+                                await loadSegmentTemplates();
+                                await loadLearningStats();
+                            }
+                        } else {
+                            const errorData = await response.json().catch(() => ({}));
+                            alert(errorData.detail || '套用失敗');
+                        }
+                    } catch (e) {
+                        console.error('套用學習失敗:', e);
+                        alert('套用失敗，請稍後再試');
+                    }
+                };
+
+                // Apply all learning results
+                const applyAllLearning = async () => {
+                    if (!confirm('確定要套用所有分段的學習結果嗎？這會更新所有有足夠樣本的分段標準時間。')) return;
+
+                    try {
+                        const response = await fetch(`${API_BASE}/pv/learning/apply-all`, {
+                            method: 'POST'
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success) {
+                                alert(data.message);
+                                await loadSegmentTemplates();
+                                await loadLearningStats();
+                            }
+                        } else {
+                            alert('套用失敗，請稍後再試');
+                        }
+                    } catch (e) {
+                        console.error('套用學習失敗:', e);
+                        alert('套用失敗，請稍後再試');
+                    }
+                };
+
+                // Helper functions for learning UI
+                const getTrendTooltip = (trend) => {
+                    switch (trend) {
+                        case 'improving': return '作業時間呈下降趨勢';
+                        case 'declining': return '作業時間呈上升趨勢';
+                        default: return '作業時間穩定';
+                    }
+                };
+
+                const getDeviationClass = (actual, standard) => {
+                    const deviation = ((actual - standard) / standard) * 100;
+                    if (deviation < -10) return 'text-success';
+                    if (deviation > 10) return 'text-error';
+                    return 'text-warning';
+                };
+
                 // Initialize Sortable for segment list
                 const initSortable = () => {
                     if (sortableInstance) {
@@ -1374,11 +1621,14 @@
                     await loadSegmentTemplates();
                 });
 
-                // Watch for view changes to initialize Sortable
+                // Watch for view changes to initialize Sortable and load learning stats
                 watch(currentView, async (newView) => {
                     if (newView === 'segments') {
                         await nextTick();
                         initSortable();
+                    }
+                    if (newView === 'learning') {
+                        await loadLearningStats();
                     }
                     updateIcons();
                 });
@@ -1415,6 +1665,13 @@
                     analyzedVideos,
                     newSegment,
                     settings,
+                    // Learning
+                    learningStats,
+                    totalSamples,
+                    applicableSegments,
+                    improvingSegments,
+                    decliningSegments,
+                    hasEnoughSamples,
                     // Upload
                     isUploading,
                     uploadStatus,
@@ -1442,7 +1699,13 @@
                     addSegmentTemplate,
                     editSegment,
                     deleteSegment,
-                    saveSettings
+                    saveSettings,
+                    // Learning methods
+                    loadLearningStats,
+                    applySingleLearning,
+                    applyAllLearning,
+                    getTrendTooltip,
+                    getDeviationClass
                 };
             }
         }).mount('#app');
