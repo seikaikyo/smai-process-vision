@@ -1289,6 +1289,8 @@
                     if (!selectedAnalysisVideoId.value) return;
 
                     isAnalyzing.value = true;
+                    // 先清空分析結果，避免舊資料殘留
+                    currentAnalysis.value = null;
 
                     try {
                         const response = await fetch(`${API_BASE}/videos/${selectedAnalysisVideoId.value}/analyze`, {
@@ -1298,20 +1300,38 @@
                         if (response.ok) {
                             const data = await response.json();
                             if (data.success && data.data && data.data.results) {
+                                // 先設定 isAnalyzing 為 false
+                                isAnalyzing.value = false;
+
+                                // 等待一個 tick 讓 Vue 處理完畢
+                                await nextTick();
+
+                                // 再設定分析結果
                                 currentAnalysis.value = {
-                                    cycleTime: data.data.results.cycle_time,
+                                    cycleTime: data.data.results.cycle_time || 0,
                                     segments: data.data.results.segments || []
                                 };
-                                // 等待 DOM 更新後再載入影片清單
-                                await nextTick();
-                                await loadVideos();
+
+                                // 更新本地影片狀態，避免重新載入整個列表
+                                const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
+                                if (videoIdx !== -1) {
+                                    videos.value[videoIdx].status = 'analyzed';
+                                    videos.value[videoIdx].statusBadge = 'badge-success';
+                                }
+
+                                // 延遲更新統計
+                                setTimeout(() => {
+                                    refreshDashboard();
+                                }, 100);
+
+                                return;
                             }
                         }
                     } catch (e) {
                         console.error('分析失敗:', e);
-                    } finally {
-                        isAnalyzing.value = false;
                     }
+
+                    isAnalyzing.value = false;
                 };
 
                 const jumpToSegment = (seg) => {
