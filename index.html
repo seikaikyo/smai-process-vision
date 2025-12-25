@@ -733,7 +733,7 @@
                 // Check API connection
                 const checkApiStatus = async () => {
                     try {
-                        const response = await fetch(`${API_BASE}/videos`, { method: 'HEAD' });
+                        const response = await fetch(`${API_BASE}/videos`);
                         apiStatus.value = response.ok ? 'connected' : 'disconnected';
                     } catch (e) {
                         apiStatus.value = 'disconnected';
