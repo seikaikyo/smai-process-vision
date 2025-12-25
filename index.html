@@ -410,15 +410,15 @@
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body">
                             <h2 class="card-title text-sm font-bold">分析結果</h2>
-                            <!-- Empty State - 使用 v-show 避免 DOM 衝突 -->
-                            <div v-show="!currentAnalysis" class="text-center py-8 opacity-60">
+                            <!-- Empty State -->
+                            <div v-if="!showAnalysisResults" class="text-center py-8 opacity-60">
                                 <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                 </svg>
                                 <p>選擇影片後點擊「開始分析」</p>
                             </div>
-                            <!-- Results - 使用 v-show 避免 DOM 衝突 -->
-                            <div v-show="currentAnalysis">
+                            <!-- Results - 使用獨立 flag 控制顯示時機 -->
+                            <div v-else>
                                 <div class="stats shadow w-full mb-4">
                                     <div class="stat">
                                         <div class="stat-title">週期時間</div>
@@ -454,8 +454,8 @@
                     </div>
                 </div>
 
-                <!-- Segments Timeline - 使用 v-show -->
-                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-show="currentAnalysis && analysisSegments.length > 0">
+                <!-- Segments Timeline -->
+                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="showAnalysisResults && analysisSegments.length > 0">
                     <div class="card-body">
                         <div class="flex justify-between items-center mb-2">
                             <h2 class="card-title text-sm font-bold">製程分段時間軸</h2>
@@ -966,6 +966,7 @@
 
                 // Analysis state
                 const isAnalyzing = ref(false);
+                const showAnalysisResults = ref(false);  // 延遲顯示結果避免 DOM 衝突
 
                 // Segment list ref for drag & drop
                 const segmentListRef = ref(null);
@@ -1288,6 +1289,8 @@
 
                 const selectAnalysisVideo = () => {
                     selectedAnalysisVideo.value = videos.value.find(v => v.id === selectedAnalysisVideoId.value);
+                    // 清除結果時先隱藏再清除
+                    showAnalysisResults.value = false;
                     currentAnalysis.value = null;
                 };
 
@@ -1295,6 +1298,8 @@
                 const startAnalysis = async () => {
                     if (!selectedAnalysisVideoId.value) return;
 
+                    // 先隱藏舊結果
+                    showAnalysisResults.value = false;
                     isAnalyzing.value = true;
 
                     try {
@@ -1311,9 +1316,9 @@
                             throw new Error('Invalid response');
                         }
 
-                        // 準備分析結果 - 使用 Object.freeze 避免深層響應式
+                        // 準備分析結果
                         const segments = Array.isArray(data.data.results.segments)
-                            ? data.data.results.segments.map(s => Object.freeze({
+                            ? data.data.results.segments.map(s => ({
                                 name: s.name || '',
                                 start: Number(s.start) || 0,
                                 end: Number(s.end) || 0,
@@ -1321,29 +1326,34 @@
                             }))
                             : [];
 
-                        const results = Object.freeze({
+                        const results = {
                             cycleTime: Number(data.data.results.cycle_time) || 0,
-                            segments: Object.freeze(segments)
-                        });
+                            segments: segments
+                        };
 
-                        // 先設定 isAnalyzing，等 DOM 穩定後再設定結果
+                        // Step 1: 停止 loading
                         isAnalyzing.value = false;
-                        await nextTick();
 
-                        // 設定結果
+                        // Step 2: 設定資料（但還不顯示）
                         currentAnalysis.value = results;
-                        triggerRef(currentAnalysis);
 
-                        // 更新本地影片狀態
-                        const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
-                        if (videoIdx !== -1) {
-                            videos.value[videoIdx].status = 'analyzed';
-                            videos.value[videoIdx].statusBadge = 'badge-success';
-                        }
-
-                        // 延遲更新統計
+                        // Step 3: 等待 Vue 處理完資料變更
                         await nextTick();
-                        refreshDashboard();
+
+                        // Step 4: 延遲顯示結果，讓 DOM 穩定
+                        setTimeout(() => {
+                            showAnalysisResults.value = true;
+
+                            // 更新本地影片狀態
+                            const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
+                            if (videoIdx !== -1) {
+                                videos.value[videoIdx].status = 'analyzed';
+                                videos.value[videoIdx].statusBadge = 'badge-success';
+                            }
+
+                            // 更新統計
+                            refreshDashboard();
+                        }, 50);
 
                     } catch (e) {
                         console.error('分析失敗:', e);
@@ -1754,6 +1764,7 @@
                     currentUploadingFile,
                     // Analysis
                     isAnalyzing,
+                    showAnalysisResults,
                     // Segment drag
                     segmentListRef,
                     // Timeline resize
