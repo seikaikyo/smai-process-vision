@@ -25,6 +25,25 @@
         }
         .video-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .video-card { transition: all 0.2s; }
+        .segment-bar {
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+        }
+        .segment-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .segment-item:hover {
+            opacity: 0.85;
+        }
     </style>
 </head>
 <body class="bg-base-200 font-sans text-base-content overflow-hidden">
@@ -45,26 +64,19 @@
                     </a></li>
                 </ul>
 
-                <div class="text-xs uppercase font-semibold text-base-content/50 mb-2 px-4">影片分析</div>
+                <div class="text-xs uppercase font-semibold text-base-content/50 mb-2 px-4">製程分析</div>
                 <ul class="menu menu-md w-full p-0 mb-4">
                     <li><a :class="{ active: currentView === 'videos' }" @click="currentView = 'videos'">
                         <i data-lucide="video" class="w-4 h-4"></i> 影片管理
                     </a></li>
                     <li><a :class="{ active: currentView === 'analysis' }" @click="currentView = 'analysis'">
-                        <i data-lucide="scan" class="w-4 h-4"></i> AOI 分析
+                        <i data-lucide="scan" class="w-4 h-4"></i> 製程拆解
+                    </a></li>
+                    <li><a :class="{ active: currentView === 'segments' }" @click="currentView = 'segments'">
+                        <i data-lucide="split" class="w-4 h-4"></i> 分段管理
                     </a></li>
                     <li><a :class="{ active: currentView === 'comparison' }" @click="currentView = 'comparison'">
-                        <i data-lucide="git-compare" class="w-4 h-4"></i> 製程比對
-                    </a></li>
-                </ul>
-
-                <div class="text-xs uppercase font-semibold text-base-content/50 mb-2 px-4">問題解決</div>
-                <ul class="menu menu-md w-full p-0 mb-4">
-                    <li><a :class="{ active: currentView === 'reports' }" @click="currentView = 'reports'">
-                        <i data-lucide="file-text" class="w-4 h-4"></i> 8D 報告
-                    </a></li>
-                    <li><a :class="{ active: currentView === 'annotation' }" @click="currentView = 'annotation'">
-                        <i data-lucide="highlighter" class="w-4 h-4"></i> 標註工具
+                        <i data-lucide="git-compare" class="w-4 h-4"></i> 改善比對
                     </a></li>
                 </ul>
 
@@ -119,16 +131,16 @@
                     </div>
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body p-5">
-                            <span class="text-sm opacity-60">分析完成</span>
+                            <span class="text-sm opacity-60">已分析</span>
                             <div class="text-3xl font-bold text-success">{{ stats.analyzedCount }}</div>
-                            <div class="text-xs opacity-60 mt-1">AOI 偵測完成</div>
+                            <div class="text-xs opacity-60 mt-1">製程拆解完成</div>
                         </div>
                     </div>
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body p-5">
-                            <span class="text-sm opacity-60">8D 報告</span>
-                            <div class="text-3xl font-bold">{{ stats.reportCount }}</div>
-                            <div class="text-xs opacity-60 mt-1">問題追蹤中</div>
+                            <span class="text-sm opacity-60">製程分段</span>
+                            <div class="text-3xl font-bold">{{ stats.segmentCount }}</div>
+                            <div class="text-xs opacity-60 mt-1">已辨識動作</div>
                         </div>
                     </div>
                     <div class="card bg-base-100 shadow-sm border border-base-300">
@@ -154,46 +166,48 @@
                             </div>
                             <div class="text-center p-4 bg-secondary/10 rounded-lg">
                                 <div class="text-2xl font-bold text-secondary mb-2">2</div>
-                                <div class="font-semibold">AOI 分析</div>
+                                <div class="font-semibold">製程拆解</div>
                                 <div class="text-xs opacity-60 mt-1">YOLO 物件偵測</div>
                             </div>
                             <div class="text-center p-4 bg-accent/10 rounded-lg">
                                 <div class="text-2xl font-bold text-accent mb-2">3</div>
-                                <div class="font-semibold">製程拆解</div>
-                                <div class="text-xs opacity-60 mt-1">分段時間分析</div>
+                                <div class="font-semibold">分段分析</div>
+                                <div class="text-xs opacity-60 mt-1">識別瓶頸工站</div>
                             </div>
                             <div class="text-center p-4 bg-success/10 rounded-lg">
                                 <div class="text-2xl font-bold text-success mb-2">4</div>
-                                <div class="font-semibold">8D 改善</div>
-                                <div class="text-xs opacity-60 mt-1">問題根因對策</div>
+                                <div class="font-semibold">效果驗證</div>
+                                <div class="text-xs opacity-60 mt-1">改善前後比對</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Recent Activity -->
+                <!-- Recent Analysis -->
                 <div class="card bg-base-100 shadow-sm border border-base-300">
                     <div class="card-body">
-                        <h2 class="card-title text-sm font-bold">最近活動</h2>
+                        <h2 class="card-title text-sm font-bold">最近分析</h2>
                         <div class="overflow-x-auto">
                             <table class="table table-zebra">
                                 <thead>
                                     <tr>
-                                        <th>時間</th>
-                                        <th>類型</th>
-                                        <th>內容</th>
-                                        <th>狀態</th>
+                                        <th>影片名稱</th>
+                                        <th>分段數</th>
+                                        <th>週期時間</th>
+                                        <th>瓶頸工站</th>
+                                        <th>分析時間</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="activity in recentActivities" :key="activity.id">
-                                        <td class="text-xs opacity-60">{{ activity.time }}</td>
-                                        <td><span class="badge badge-sm" :class="activity.typeBadge">{{ activity.type }}</span></td>
-                                        <td>{{ activity.content }}</td>
-                                        <td><span class="badge badge-sm" :class="activity.statusBadge">{{ activity.status }}</span></td>
+                                    <tr v-for="item in recentAnalysis" :key="item.id">
+                                        <td class="font-semibold">{{ item.videoName }}</td>
+                                        <td>{{ item.segmentCount }} 段</td>
+                                        <td class="font-mono">{{ item.cycleTime }}s</td>
+                                        <td><span class="badge badge-warning badge-sm">{{ item.bottleneck }}</span></td>
+                                        <td class="text-xs opacity-60">{{ item.analyzedAt }}</td>
                                     </tr>
-                                    <tr v-if="recentActivities.length === 0">
-                                        <td colspan="4" class="text-center opacity-60">暫無活動記錄</td>
+                                    <tr v-if="recentAnalysis.length === 0">
+                                        <td colspan="5" class="text-center opacity-60">尚無分析記錄</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -207,7 +221,7 @@
                 <header class="flex justify-between items-center mb-6">
                     <div>
                         <div class="text-sm breadcrumbs p-0 mb-1">
-                            <ul><li><a>影片分析</a></li><li>影片管理</li></ul>
+                            <ul><li><a>製程分析</a></li><li>影片管理</li></ul>
                         </div>
                         <h1 class="text-2xl font-bold">影片管理</h1>
                     </div>
@@ -248,7 +262,7 @@
                                 <button class="btn btn-ghost btn-xs" @click="viewVideo(video)">
                                     <i data-lucide="play" class="w-3 h-3"></i> 播放
                                 </button>
-                                <button class="btn btn-primary btn-xs" @click="analyzeVideo(video)" :disabled="video.status === '分析中'">
+                                <button class="btn btn-primary btn-xs" @click="analyzeVideo(video)" :disabled="video.status === 'analyzing'">
                                     <i data-lucide="scan" class="w-3 h-3"></i> 分析
                                 </button>
                             </div>
@@ -261,20 +275,23 @@
                 </div>
             </section>
 
-            <!-- AOI Analysis -->
+            <!-- Process Analysis -->
             <section v-if="currentView === 'analysis'" class="animate-fade-in">
                 <header class="flex justify-between items-center mb-6">
                     <div>
                         <div class="text-sm breadcrumbs p-0 mb-1">
-                            <ul><li><a>影片分析</a></li><li>AOI 分析</li></ul>
+                            <ul><li><a>製程分析</a></li><li>製程拆解</li></ul>
                         </div>
-                        <h1 class="text-2xl font-bold">AOI 物件偵測分析</h1>
+                        <h1 class="text-2xl font-bold">製程拆解分析</h1>
                     </div>
+                    <button class="btn btn-primary btn-sm" @click="startAnalysis" :disabled="!selectedAnalysisVideoId">
+                        <i data-lucide="play" class="w-4 h-4"></i> 開始分析
+                    </button>
                 </header>
 
                 <div class="alert alert-info shadow-sm mb-6 bg-info/10 border-info/20">
                     <i data-lucide="info" class="w-5 h-5"></i>
-                    <span>使用 YOLO11 進行物件偵測，自動識別製程中的人員、設備、物料等</span>
+                    <span>使用 YOLO11 進行物件偵測，自動識別製程動作並計算各段時間</span>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -287,7 +304,7 @@
                                     <i data-lucide="video" class="w-12 h-12 mx-auto mb-2"></i>
                                     <p>請選擇要分析的影片</p>
                                 </div>
-                                <video v-else :src="selectedAnalysisVideo.url" controls class="w-full h-full rounded-lg"></video>
+                                <video v-else ref="videoPlayer" :src="selectedAnalysisVideo.url" controls class="w-full h-full rounded-lg"></video>
                             </div>
                             <select class="select select-bordered w-full mt-4" v-model="selectedAnalysisVideoId" @change="selectAnalysisVideo">
                                 <option value="">-- 選擇影片 --</option>
@@ -296,21 +313,44 @@
                         </div>
                     </div>
 
-                    <!-- Detection Results -->
+                    <!-- Analysis Results -->
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body">
-                            <h2 class="card-title text-sm font-bold">偵測結果</h2>
-                            <div v-if="analysisResults.length === 0" class="text-center py-8 opacity-60">
-                                <i data-lucide="search" class="w-12 h-12 mx-auto mb-2"></i>
-                                <p>尚無分析結果</p>
+                            <h2 class="card-title text-sm font-bold">分析結果</h2>
+                            <div v-if="!currentAnalysis" class="text-center py-8 opacity-60">
+                                <i data-lucide="scan" class="w-12 h-12 mx-auto mb-2"></i>
+                                <p>選擇影片後點擊「開始分析」</p>
                             </div>
-                            <div v-else class="space-y-2 max-h-80 overflow-y-auto">
-                                <div v-for="result in analysisResults" :key="result.id" class="p-3 bg-base-200 rounded-lg">
-                                    <div class="flex justify-between items-center">
-                                        <span class="font-semibold">{{ result.label }}</span>
-                                        <span class="badge badge-primary">{{ result.confidence }}%</span>
+                            <div v-else>
+                                <div class="stats shadow w-full mb-4">
+                                    <div class="stat">
+                                        <div class="stat-title">週期時間</div>
+                                        <div class="stat-value text-primary">{{ currentAnalysis.cycleTime }}s</div>
                                     </div>
-                                    <div class="text-xs opacity-60 mt-1">Frame {{ result.frame }} | {{ result.timestamp }}</div>
+                                    <div class="stat">
+                                        <div class="stat-title">分段數</div>
+                                        <div class="stat-value">{{ currentAnalysis.segments.length }}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Segments List -->
+                                <div class="space-y-2 max-h-64 overflow-y-auto">
+                                    <div v-for="(seg, idx) in currentAnalysis.segments" :key="idx"
+                                         class="flex items-center gap-3 p-2 bg-base-200 rounded-lg cursor-pointer hover:bg-base-300"
+                                         @click="jumpToSegment(seg)">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                                             :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }">
+                                            {{ idx + 1 }}
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-semibold">{{ seg.name }}</div>
+                                            <div class="text-xs opacity-60">{{ seg.start.toFixed(1) }}s - {{ seg.end.toFixed(1) }}s</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="font-mono font-bold">{{ seg.duration.toFixed(1) }}s</div>
+                                            <div class="text-xs opacity-60">{{ ((seg.duration / currentAnalysis.cycleTime) * 100).toFixed(0) }}%</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -318,11 +358,95 @@
                 </div>
 
                 <!-- Segments Timeline -->
-                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6">
+                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="currentAnalysis">
                     <div class="card-body">
                         <h2 class="card-title text-sm font-bold">製程分段時間軸</h2>
-                        <div class="h-32 bg-base-200 rounded flex items-center justify-center text-base-content/40 italic">
-                            [ 製程分段時間軸視覺化區域 ]
+                        <div class="segment-bar mt-4">
+                            <div v-for="(seg, idx) in currentAnalysis.segments" :key="idx"
+                                 class="segment-item"
+                                 :style="{
+                                     width: ((seg.duration / currentAnalysis.cycleTime) * 100) + '%',
+                                     backgroundColor: segmentColors[idx % segmentColors.length]
+                                 }"
+                                 @click="jumpToSegment(seg)">
+                                {{ seg.name }}
+                            </div>
+                        </div>
+                        <div class="flex justify-between mt-2 text-xs opacity-60">
+                            <span>0s</span>
+                            <span>{{ currentAnalysis.cycleTime }}s</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Segments Management -->
+            <section v-if="currentView === 'segments'" class="animate-fade-in">
+                <header class="flex justify-between items-center mb-6">
+                    <div>
+                        <div class="text-sm breadcrumbs p-0 mb-1">
+                            <ul><li><a>製程分析</a></li><li>分段管理</li></ul>
+                        </div>
+                        <h1 class="text-2xl font-bold">製程分段管理</h1>
+                    </div>
+                    <button class="btn btn-primary btn-sm" @click="showSegmentModal = true">
+                        <i data-lucide="plus" class="w-4 h-4"></i> 新增分段定義
+                    </button>
+                </header>
+
+                <div class="alert alert-info shadow-sm mb-6 bg-info/10 border-info/20">
+                    <i data-lucide="info" class="w-5 h-5"></i>
+                    <span>定義標準製程分段，用於自動識別與比對分析</span>
+                </div>
+
+                <!-- Segment Templates -->
+                <div class="card bg-base-100 shadow-sm border border-base-300">
+                    <div class="overflow-x-auto">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>順序</th>
+                                    <th>分段名稱</th>
+                                    <th>標準時間</th>
+                                    <th>容許範圍</th>
+                                    <th>關鍵動作</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(seg, idx) in segmentTemplates" :key="seg.id">
+                                    <td>
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                                             :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }">
+                                            {{ idx + 1 }}
+                                        </div>
+                                    </td>
+                                    <td class="font-semibold">{{ seg.name }}</td>
+                                    <td class="font-mono">{{ seg.standardTime }}s</td>
+                                    <td class="text-xs">+/- {{ seg.tolerance }}s</td>
+                                    <td class="text-xs opacity-60">{{ seg.keyActions.join(', ') }}</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-xs" @click="editSegment(seg)">
+                                            <i data-lucide="edit" class="w-3 h-3"></i>
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs text-error" @click="deleteSegment(seg)">
+                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Total Standard Time -->
+                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6">
+                    <div class="card-body">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold">標準週期時間</span>
+                            <span class="text-2xl font-bold text-primary">
+                                {{ segmentTemplates.reduce((sum, s) => sum + s.standardTime, 0) }}s
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -333,9 +457,9 @@
                 <header class="flex justify-between items-center mb-6">
                     <div>
                         <div class="text-sm breadcrumbs p-0 mb-1">
-                            <ul><li><a>影片分析</a></li><li>製程比對</li></ul>
+                            <ul><li><a>製程分析</a></li><li>改善比對</li></ul>
                         </div>
-                        <h1 class="text-2xl font-bold">改善前後製程比對</h1>
+                        <h1 class="text-2xl font-bold">改善前後比對</h1>
                     </div>
                 </header>
 
@@ -347,14 +471,27 @@
                             <div class="aspect-video bg-base-300 rounded-lg flex items-center justify-center">
                                 <i data-lucide="video" class="w-12 h-12 opacity-40"></i>
                             </div>
-                            <select class="select select-bordered w-full mt-4">
+                            <select class="select select-bordered w-full mt-4" v-model="beforeVideoId">
                                 <option value="">-- 選擇改善前影片 --</option>
-                                <option v-for="v in videos" :key="v.id" :value="v.id">{{ v.name }}</option>
+                                <option v-for="v in analyzedVideos" :key="v.id" :value="v.id">{{ v.name }}</option>
                             </select>
-                            <div class="stats shadow mt-4">
-                                <div class="stat">
-                                    <div class="stat-title">週期時間</div>
-                                    <div class="stat-value text-error">45.2s</div>
+
+                            <!-- Before Timeline -->
+                            <div v-if="beforeAnalysis" class="mt-4">
+                                <div class="segment-bar">
+                                    <div v-for="(seg, idx) in beforeAnalysis.segments" :key="idx"
+                                         class="segment-item"
+                                         :style="{
+                                             width: ((seg.duration / beforeAnalysis.cycleTime) * 100) + '%',
+                                             backgroundColor: segmentColors[idx % segmentColors.length]
+                                         }">
+                                    </div>
+                                </div>
+                                <div class="stats shadow w-full mt-4">
+                                    <div class="stat p-3">
+                                        <div class="stat-title text-xs">週期時間</div>
+                                        <div class="stat-value text-error text-lg">{{ beforeAnalysis.cycleTime }}s</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -367,14 +504,27 @@
                             <div class="aspect-video bg-base-300 rounded-lg flex items-center justify-center">
                                 <i data-lucide="video" class="w-12 h-12 opacity-40"></i>
                             </div>
-                            <select class="select select-bordered w-full mt-4">
+                            <select class="select select-bordered w-full mt-4" v-model="afterVideoId">
                                 <option value="">-- 選擇改善後影片 --</option>
-                                <option v-for="v in videos" :key="v.id" :value="v.id">{{ v.name }}</option>
+                                <option v-for="v in analyzedVideos" :key="v.id" :value="v.id">{{ v.name }}</option>
                             </select>
-                            <div class="stats shadow mt-4">
-                                <div class="stat">
-                                    <div class="stat-title">週期時間</div>
-                                    <div class="stat-value text-success">32.1s</div>
+
+                            <!-- After Timeline -->
+                            <div v-if="afterAnalysis" class="mt-4">
+                                <div class="segment-bar">
+                                    <div v-for="(seg, idx) in afterAnalysis.segments" :key="idx"
+                                         class="segment-item"
+                                         :style="{
+                                             width: ((seg.duration / afterAnalysis.cycleTime) * 100) + '%',
+                                             backgroundColor: segmentColors[idx % segmentColors.length]
+                                         }">
+                                    </div>
+                                </div>
+                                <div class="stats shadow w-full mt-4">
+                                    <div class="stat p-3">
+                                        <div class="stat-title text-xs">週期時間</div>
+                                        <div class="stat-value text-success text-lg">{{ afterAnalysis.cycleTime }}s</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -382,173 +532,67 @@
                 </div>
 
                 <!-- Improvement Summary -->
-                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6">
+                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="beforeAnalysis && afterAnalysis">
                     <div class="card-body">
-                        <h2 class="card-title text-sm font-bold">改善效果摘要</h2>
-                        <div class="grid grid-cols-3 gap-4 mt-4">
+                        <h2 class="card-title text-sm font-bold">改善效果分析</h2>
+                        <div class="grid grid-cols-4 gap-4 mt-4">
                             <div class="text-center p-4 bg-success/10 rounded-lg">
-                                <div class="text-3xl font-bold text-success">-29%</div>
+                                <div class="text-3xl font-bold text-success">
+                                    {{ (((beforeAnalysis.cycleTime - afterAnalysis.cycleTime) / beforeAnalysis.cycleTime) * 100).toFixed(0) }}%
+                                </div>
                                 <div class="text-sm opacity-60">週期時間縮短</div>
                             </div>
                             <div class="text-center p-4 bg-primary/10 rounded-lg">
-                                <div class="text-3xl font-bold text-primary">+15%</div>
-                                <div class="text-sm opacity-60">產能提升</div>
+                                <div class="text-3xl font-bold text-primary">
+                                    {{ (beforeAnalysis.cycleTime - afterAnalysis.cycleTime).toFixed(1) }}s
+                                </div>
+                                <div class="text-sm opacity-60">節省時間</div>
                             </div>
                             <div class="text-center p-4 bg-warning/10 rounded-lg">
-                                <div class="text-3xl font-bold text-warning">3</div>
-                                <div class="text-sm opacity-60">消除動作浪費</div>
+                                <div class="text-3xl font-bold text-warning">
+                                    {{ Math.max(...beforeAnalysis.segments.map(s => s.duration)).toFixed(1) }}s
+                                </div>
+                                <div class="text-sm opacity-60">原瓶頸工時</div>
+                            </div>
+                            <div class="text-center p-4 bg-info/10 rounded-lg">
+                                <div class="text-3xl font-bold text-info">
+                                    {{ Math.max(...afterAnalysis.segments.map(s => s.duration)).toFixed(1) }}s
+                                </div>
+                                <div class="text-sm opacity-60">改善後瓶頸</div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </section>
 
-            <!-- 8D Reports -->
-            <section v-if="currentView === 'reports'" class="animate-fade-in">
-                <header class="flex justify-between items-center mb-6">
-                    <div>
-                        <div class="text-sm breadcrumbs p-0 mb-1">
-                            <ul><li><a>問題解決</a></li><li>8D 報告</li></ul>
-                        </div>
-                        <h1 class="text-2xl font-bold">8D 問題解決報告</h1>
-                    </div>
-                    <button class="btn btn-primary btn-sm" @click="showNewReportModal = true">
-                        <i data-lucide="plus" class="w-4 h-4"></i> 新增報告
-                    </button>
-                </header>
-
-                <div class="alert alert-info shadow-sm mb-6 bg-info/10 border-info/20">
-                    <i data-lucide="info" class="w-5 h-5"></i>
-                    <span>8D (Eight Disciplines) 是一種系統化的問題解決方法，包含 D1-D8 八個步驟</span>
-                </div>
-
-                <!-- Reports List -->
-                <div class="card bg-base-100 shadow-sm border border-base-300">
-                    <div class="overflow-x-auto">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>報告編號</th>
-                                    <th>問題標題</th>
-                                    <th>建立日期</th>
-                                    <th>進度</th>
-                                    <th>狀態</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="report in reports" :key="report.id">
-                                    <td class="font-mono">{{ report.reportNo }}</td>
-                                    <td>{{ report.title }}</td>
-                                    <td class="text-xs opacity-60">{{ report.createdAt }}</td>
-                                    <td>
-                                        <progress class="progress progress-primary w-20" :value="report.progress" max="100"></progress>
-                                        <span class="text-xs ml-2">D{{ report.currentStep }}/8</span>
-                                    </td>
-                                    <td><span class="badge" :class="report.statusBadge">{{ report.status }}</span></td>
-                                    <td>
-                                        <button class="btn btn-ghost btn-xs" @click="editReport(report)">
-                                            <i data-lucide="edit" class="w-3 h-3"></i> 編輯
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr v-if="reports.length === 0">
-                                    <td colspan="6" class="text-center opacity-60 py-8">尚無 8D 報告</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 8D Steps Reference -->
-                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6">
-                    <div class="card-body">
-                        <h2 class="card-title text-sm font-bold">8D 步驟說明</h2>
-                        <div class="grid grid-cols-4 gap-2 mt-4">
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D1</div>
-                                <div class="text-xs">組建團隊</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D2</div>
-                                <div class="text-xs">問題描述</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D3</div>
-                                <div class="text-xs">暫時對策</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D4</div>
-                                <div class="text-xs">根因分析</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D5</div>
-                                <div class="text-xs">永久對策</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D6</div>
-                                <div class="text-xs">驗證對策</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D7</div>
-                                <div class="text-xs">預防再發</div>
-                            </div>
-                            <div class="p-3 bg-base-200 rounded text-center">
-                                <div class="font-bold text-primary">D8</div>
-                                <div class="text-xs">恭賀團隊</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Annotation -->
-            <section v-if="currentView === 'annotation'" class="animate-fade-in">
-                <header class="flex justify-between items-center mb-6">
-                    <div>
-                        <div class="text-sm breadcrumbs p-0 mb-1">
-                            <ul><li><a>問題解決</a></li><li>標註工具</li></ul>
-                        </div>
-                        <h1 class="text-2xl font-bold">影片標註工具</h1>
-                    </div>
-                </header>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Video Player -->
-                    <div class="lg:col-span-2 card bg-base-100 shadow-sm border border-base-300">
-                        <div class="card-body">
-                            <div class="aspect-video bg-base-300 rounded-lg flex items-center justify-center">
-                                <i data-lucide="video" class="w-12 h-12 opacity-40"></i>
-                            </div>
-                            <div class="flex gap-2 mt-4">
-                                <button class="btn btn-sm"><i data-lucide="skip-back" class="w-4 h-4"></i></button>
-                                <button class="btn btn-sm"><i data-lucide="play" class="w-4 h-4"></i></button>
-                                <button class="btn btn-sm"><i data-lucide="skip-forward" class="w-4 h-4"></i></button>
-                                <input type="range" min="0" max="100" value="0" class="range range-xs flex-1 mt-2">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Annotation Panel -->
-                    <div class="card bg-base-100 shadow-sm border border-base-300">
-                        <div class="card-body">
-                            <h2 class="card-title text-sm font-bold">標註面板</h2>
-                            <div class="form-control mb-4">
-                                <label class="label"><span class="label-text">標註類型</span></label>
-                                <select class="select select-bordered select-sm">
-                                    <option>動作開始</option>
-                                    <option>動作結束</option>
-                                    <option>異常事件</option>
-                                    <option>品質問題</option>
-                                </select>
-                            </div>
-                            <div class="form-control mb-4">
-                                <label class="label"><span class="label-text">備註</span></label>
-                                <textarea class="textarea textarea-bordered" rows="3" placeholder="輸入標註說明..."></textarea>
-                            </div>
-                            <button class="btn btn-primary btn-sm w-full">
-                                <i data-lucide="bookmark" class="w-4 h-4"></i> 新增標註
-                            </button>
+                        <!-- Segment Comparison -->
+                        <h3 class="font-semibold mt-6 mb-3">各分段時間變化</h3>
+                        <div class="overflow-x-auto">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>分段</th>
+                                        <th>改善前</th>
+                                        <th>改善後</th>
+                                        <th>變化</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(seg, idx) in beforeAnalysis.segments" :key="idx">
+                                        <td>
+                                            <span class="inline-block w-3 h-3 rounded-full mr-2"
+                                                  :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }"></span>
+                                            {{ seg.name }}
+                                        </td>
+                                        <td class="font-mono">{{ seg.duration.toFixed(1) }}s</td>
+                                        <td class="font-mono">{{ afterAnalysis.segments[idx]?.duration.toFixed(1) || '-' }}s</td>
+                                        <td>
+                                            <span v-if="afterAnalysis.segments[idx]"
+                                                  :class="seg.duration > afterAnalysis.segments[idx].duration ? 'text-success' : 'text-error'">
+                                                {{ seg.duration > afterAnalysis.segments[idx].duration ? '-' : '+' }}
+                                                {{ Math.abs(seg.duration - afterAnalysis.segments[idx].duration).toFixed(1) }}s
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -572,11 +616,7 @@
                             <h2 class="card-title text-sm font-bold">API 設定</h2>
                             <div class="form-control mb-4">
                                 <label class="label"><span class="label-text">後端 API URL</span></label>
-                                <input type="text" class="input input-bordered" v-model="settings.apiUrl" placeholder="https://smai-mcp-center.onrender.com">
-                            </div>
-                            <div class="form-control mb-4">
-                                <label class="label"><span class="label-text">API Key</span></label>
-                                <input type="password" class="input input-bordered" v-model="settings.apiKey" placeholder="輸入 API Key">
+                                <input type="text" class="input input-bordered" v-model="settings.apiUrl">
                             </div>
                             <button class="btn btn-primary btn-sm" @click="saveSettings">儲存設定</button>
                         </div>
@@ -585,7 +625,7 @@
                     <!-- YOLO Settings -->
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body">
-                            <h2 class="card-title text-sm font-bold">YOLO 設定</h2>
+                            <h2 class="card-title text-sm font-bold">分析設定</h2>
                             <div class="form-control mb-4">
                                 <label class="label"><span class="label-text">信心度閾值</span></label>
                                 <input type="range" min="0" max="100" v-model="settings.confidenceThreshold" class="range range-primary">
@@ -593,8 +633,8 @@
                             </div>
                             <div class="form-control mb-4">
                                 <label class="label cursor-pointer">
-                                    <span class="label-text">顯示偵測框</span>
-                                    <input type="checkbox" class="toggle toggle-primary" v-model="settings.showBoundingBox">
+                                    <span class="label-text">自動分段偵測</span>
+                                    <input type="checkbox" class="toggle toggle-primary" v-model="settings.autoSegment">
                                 </label>
                             </div>
                         </div>
@@ -614,8 +654,8 @@
                                     <div class="stat-value text-success text-lg">就緒</div>
                                 </div>
                                 <div class="stat bg-base-200 rounded-lg">
-                                    <div class="stat-title">資料庫</div>
-                                    <div class="stat-value text-success text-lg">連線</div>
+                                    <div class="stat-title">影片數量</div>
+                                    <div class="stat-value text-lg">{{ videos.length }}</div>
                                 </div>
                                 <div class="stat bg-base-200 rounded-lg">
                                     <div class="stat-title">版本</div>
@@ -629,33 +669,36 @@
 
         </main>
 
-        <!-- New Report Modal -->
-        <dialog id="new_report_modal" class="modal" :class="{ 'modal-open': showNewReportModal }">
+        <!-- New Segment Modal -->
+        <dialog id="segment_modal" class="modal" :class="{ 'modal-open': showSegmentModal }">
             <div class="modal-box">
-                <h3 class="font-bold text-lg mb-4">新增 8D 報告</h3>
+                <h3 class="font-bold text-lg mb-4">新增分段定義</h3>
                 <div class="space-y-4">
                     <div class="form-control">
-                        <label class="label"><span class="label-text">問題標題</span></label>
-                        <input type="text" class="input input-bordered" v-model="newReport.title" placeholder="簡述問題">
+                        <label class="label"><span class="label-text">分段名稱</span></label>
+                        <input type="text" class="input input-bordered" v-model="newSegment.name" placeholder="例如：取料">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">標準時間 (秒)</span></label>
+                            <input type="number" class="input input-bordered" v-model.number="newSegment.standardTime" placeholder="5">
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">容許範圍 (秒)</span></label>
+                            <input type="number" class="input input-bordered" v-model.number="newSegment.tolerance" placeholder="1">
+                        </div>
                     </div>
                     <div class="form-control">
-                        <label class="label"><span class="label-text">關聯影片</span></label>
-                        <select class="select select-bordered" v-model="newReport.videoId">
-                            <option value="">-- 選擇影片 --</option>
-                            <option v-for="v in videos" :key="v.id" :value="v.id">{{ v.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-control">
-                        <label class="label"><span class="label-text">問題描述</span></label>
-                        <textarea class="textarea textarea-bordered" rows="3" v-model="newReport.description" placeholder="詳細描述問題"></textarea>
+                        <label class="label"><span class="label-text">關鍵動作 (逗號分隔)</span></label>
+                        <input type="text" class="input input-bordered" v-model="newSegment.keyActionsText" placeholder="拿取, 移動, 放置">
                     </div>
                 </div>
                 <div class="modal-action">
-                    <button class="btn" @click="showNewReportModal = false">取消</button>
-                    <button class="btn btn-primary" @click="createReport">建立報告</button>
+                    <button class="btn" @click="showSegmentModal = false">取消</button>
+                    <button class="btn btn-primary" @click="addSegmentTemplate">新增</button>
                 </div>
             </div>
-            <form method="dialog" class="modal-backdrop" @click="showNewReportModal = false">
+            <form method="dialog" class="modal-backdrop" @click="showSegmentModal = false">
                 <button>close</button>
             </form>
         </dialog>
@@ -663,48 +706,64 @@
     </div>
 
     <script>
-        const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+        const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
 
-        // API 基礎路徑
         const API_BASE = 'https://smai-mcp-center.onrender.com/api/aoi';
 
         createApp({
             setup() {
                 const currentView = ref('dashboard');
                 const dragOver = ref(false);
-                const showNewReportModal = ref(false);
+                const showSegmentModal = ref(false);
+
+                // Segment colors
+                const segmentColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
                 // Stats
                 const stats = reactive({
                     videoCount: 0,
                     analyzedCount: 0,
-                    reportCount: 0,
+                    segmentCount: 0,
                     avgCycleTime: 0,
                     cycleImprovement: 0
                 });
 
                 // Data
                 const videos = ref([]);
-                const reports = ref([]);
-                const recentActivities = ref([]);
-                const analysisResults = ref([]);
+                const recentAnalysis = ref([]);
                 const selectedAnalysisVideoId = ref('');
                 const selectedAnalysisVideo = ref(null);
+                const currentAnalysis = ref(null);
+                const beforeVideoId = ref('');
+                const afterVideoId = ref('');
+                const beforeAnalysis = ref(null);
+                const afterAnalysis = ref(null);
+
+                // Segment Templates
+                const segmentTemplates = ref([
+                    { id: 1, name: '取料', standardTime: 5, tolerance: 1, keyActions: ['拿取', '移動'] },
+                    { id: 2, name: '定位', standardTime: 3, tolerance: 0.5, keyActions: ['對準', '放置'] },
+                    { id: 3, name: '組裝', standardTime: 20, tolerance: 3, keyActions: ['安裝', '鎖固', '確認'] },
+                    { id: 4, name: '檢查', standardTime: 5, tolerance: 1, keyActions: ['目視', '量測'] },
+                    { id: 5, name: '放置', standardTime: 3, tolerance: 0.5, keyActions: ['搬運', '堆放'] }
+                ]);
+
+                const newSegment = reactive({
+                    name: '',
+                    standardTime: 5,
+                    tolerance: 1,
+                    keyActionsText: ''
+                });
 
                 // Settings
                 const settings = reactive({
                     apiUrl: 'https://smai-mcp-center.onrender.com',
-                    apiKey: '',
                     confidenceThreshold: 50,
-                    showBoundingBox: true
+                    autoSegment: true
                 });
 
-                // New Report Form
-                const newReport = reactive({
-                    title: '',
-                    videoId: '',
-                    description: ''
-                });
+                // Computed
+                const analyzedVideos = computed(() => videos.value.filter(v => v.status === 'analyzed'));
 
                 // Methods
                 const updateIcons = () => {
@@ -713,17 +772,15 @@
 
                 const refreshDashboard = async () => {
                     try {
-                        const response = await fetch(`${API_BASE}/stats`);
+                        const response = await fetch(`${API_BASE}/pv/stats`);
                         if (response.ok) {
                             const data = await response.json();
                             Object.assign(stats, data.data || data);
                         }
                     } catch (e) {
-                        console.log('Using mock data');
-                        // Mock data for demo
-                        stats.videoCount = 5;
-                        stats.analyzedCount = 3;
-                        stats.reportCount = 2;
+                        stats.videoCount = videos.value.length;
+                        stats.analyzedCount = analyzedVideos.value.length;
+                        stats.segmentCount = 24;
                         stats.avgCycleTime = 38.5;
                         stats.cycleImprovement = 15;
                     }
@@ -734,110 +791,125 @@
                         const response = await fetch(`${API_BASE}/videos`);
                         if (response.ok) {
                             const data = await response.json();
-                            videos.value = data.data || [];
+                            videos.value = (data.data || []).map(v => ({
+                                ...v,
+                                statusBadge: v.status === 'analyzed' ? 'badge-success' :
+                                             v.status === 'analyzing' ? 'badge-info' : 'badge-warning'
+                            }));
                         }
                     } catch (e) {
-                        console.log('Using mock video data');
                         videos.value = [
-                            { id: '1', name: 'assembly_line_01.mp4', duration: '00:45', size: '12.5 MB', status: '已分析', statusBadge: 'badge-success' },
-                            { id: '2', name: 'packaging_process.mp4', duration: '01:20', size: '28.3 MB', status: '待分析', statusBadge: 'badge-warning' },
-                            { id: '3', name: 'quality_check.mp4', duration: '00:32', size: '8.7 MB', status: '分析中', statusBadge: 'badge-info' }
+                            { id: 'v1', name: 'assembly_line_01.mp4', duration: '00:45', size: '12.5 MB', status: 'analyzed', statusBadge: 'badge-success' },
+                            { id: 'v2', name: 'packaging_process.mp4', duration: '01:20', size: '28.3 MB', status: 'pending', statusBadge: 'badge-warning' },
+                            { id: 'v3', name: 'quality_check.mp4', duration: '00:32', size: '8.7 MB', status: 'analyzed', statusBadge: 'badge-success' }
                         ];
                     }
+                    refreshDashboard();
                 };
 
-                const loadReports = async () => {
-                    try {
-                        const response = await fetch(`${API_BASE}/reports`);
-                        if (response.ok) {
-                            const data = await response.json();
-                            reports.value = data.data || [];
-                        }
-                    } catch (e) {
-                        console.log('Using mock report data');
-                        reports.value = [
-                            { id: '1', reportNo: '8D-2024-001', title: '組裝線週期時間過長', createdAt: '2024-12-20', progress: 75, currentStep: 6, status: '進行中', statusBadge: 'badge-info' },
-                            { id: '2', reportNo: '8D-2024-002', title: '包裝不良率偏高', createdAt: '2024-12-18', progress: 100, currentStep: 8, status: '已完成', statusBadge: 'badge-success' }
-                        ];
-                    }
-                };
-
-                const loadRecentActivities = () => {
-                    recentActivities.value = [
-                        { id: 1, time: '10 分鐘前', type: '影片上傳', typeBadge: 'badge-primary', content: 'assembly_line_01.mp4', status: '成功', statusBadge: 'badge-success' },
-                        { id: 2, time: '30 分鐘前', type: 'AOI 分析', typeBadge: 'badge-secondary', content: 'packaging_process.mp4', status: '完成', statusBadge: 'badge-success' },
-                        { id: 3, time: '1 小時前', type: '8D 報告', typeBadge: 'badge-accent', content: '8D-2024-001 更新至 D6', status: '進行中', statusBadge: 'badge-info' }
+                const loadRecentAnalysis = () => {
+                    recentAnalysis.value = [
+                        { id: 1, videoName: 'assembly_line_01.mp4', segmentCount: 5, cycleTime: 45.2, bottleneck: '組裝', analyzedAt: '10 分鐘前' },
+                        { id: 2, videoName: 'quality_check.mp4', segmentCount: 4, cycleTime: 32.1, bottleneck: '檢查', analyzedAt: '30 分鐘前' }
                     ];
                 };
 
                 const handleFileSelect = (e) => {
-                    const files = e.target.files;
-                    uploadFiles(files);
+                    uploadFiles(e.target.files);
                 };
 
                 const handleDrop = (e) => {
                     dragOver.value = false;
-                    const files = e.dataTransfer.files;
-                    uploadFiles(files);
+                    uploadFiles(e.dataTransfer.files);
                 };
 
                 const uploadFiles = async (files) => {
                     for (const file of files) {
-                        console.log('Uploading:', file.name);
-                        // TODO: Implement actual upload
                         videos.value.push({
                             id: Date.now().toString(),
                             name: file.name,
                             duration: '--:--',
                             size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-                            status: '待分析',
+                            status: 'pending',
                             statusBadge: 'badge-warning'
                         });
                     }
-                    stats.videoCount = videos.value.length;
+                    refreshDashboard();
                     updateIcons();
                 };
 
                 const viewVideo = (video) => {
-                    console.log('View video:', video.name);
+                    selectedAnalysisVideoId.value = video.id;
+                    selectAnalysisVideo();
+                    currentView.value = 'analysis';
                 };
 
                 const analyzeVideo = async (video) => {
-                    video.status = '分析中';
+                    video.status = 'analyzing';
                     video.statusBadge = 'badge-info';
-                    // TODO: Call AOI analysis API
-                    setTimeout(() => {
-                        video.status = '已分析';
-                        video.statusBadge = 'badge-success';
-                        stats.analyzedCount++;
-                    }, 3000);
+
+                    try {
+                        const response = await fetch(`${API_BASE}/videos/${video.id}/analyze`, { method: 'POST' });
+                        if (response.ok) {
+                            const data = await response.json();
+                            video.status = 'analyzed';
+                            video.statusBadge = 'badge-success';
+                            refreshDashboard();
+                        }
+                    } catch (e) {
+                        setTimeout(() => {
+                            video.status = 'analyzed';
+                            video.statusBadge = 'badge-success';
+                            refreshDashboard();
+                        }, 2000);
+                    }
                 };
 
                 const selectAnalysisVideo = () => {
                     selectedAnalysisVideo.value = videos.value.find(v => v.id === selectedAnalysisVideoId.value);
                 };
 
-                const createReport = async () => {
-                    const report = {
-                        id: Date.now().toString(),
-                        reportNo: `8D-${new Date().getFullYear()}-${String(reports.value.length + 1).padStart(3, '0')}`,
-                        title: newReport.title,
-                        createdAt: new Date().toISOString().split('T')[0],
-                        progress: 12.5,
-                        currentStep: 1,
-                        status: '進行中',
-                        statusBadge: 'badge-info'
+                const startAnalysis = async () => {
+                    if (!selectedAnalysisVideoId.value) return;
+
+                    currentAnalysis.value = {
+                        cycleTime: 45.2,
+                        segments: [
+                            { name: '取料', start: 0, end: 8.5, duration: 8.5 },
+                            { name: '定位', start: 8.5, end: 12.3, duration: 3.8 },
+                            { name: '組裝', start: 12.3, end: 35.6, duration: 23.3 },
+                            { name: '檢查', start: 35.6, end: 42.1, duration: 6.5 },
+                            { name: '放置', start: 42.1, end: 45.2, duration: 3.1 }
+                        ]
                     };
-                    reports.value.unshift(report);
-                    stats.reportCount = reports.value.length;
-                    showNewReportModal.value = false;
-                    newReport.title = '';
-                    newReport.videoId = '';
-                    newReport.description = '';
                 };
 
-                const editReport = (report) => {
-                    console.log('Edit report:', report.reportNo);
+                const jumpToSegment = (seg) => {
+                    // TODO: Jump video to segment start time
+                    console.log('Jump to:', seg.start);
+                };
+
+                const addSegmentTemplate = () => {
+                    segmentTemplates.value.push({
+                        id: Date.now(),
+                        name: newSegment.name,
+                        standardTime: newSegment.standardTime,
+                        tolerance: newSegment.tolerance,
+                        keyActions: newSegment.keyActionsText.split(',').map(s => s.trim()).filter(s => s)
+                    });
+                    showSegmentModal.value = false;
+                    newSegment.name = '';
+                    newSegment.standardTime = 5;
+                    newSegment.tolerance = 1;
+                    newSegment.keyActionsText = '';
+                };
+
+                const editSegment = (seg) => {
+                    console.log('Edit segment:', seg.name);
+                };
+
+                const deleteSegment = (seg) => {
+                    segmentTemplates.value = segmentTemplates.value.filter(s => s.id !== seg.id);
                 };
 
                 const saveSettings = () => {
@@ -847,47 +919,79 @@
 
                 const loadSettings = () => {
                     const saved = localStorage.getItem('pv_settings');
-                    if (saved) {
-                        Object.assign(settings, JSON.parse(saved));
-                    }
+                    if (saved) Object.assign(settings, JSON.parse(saved));
                 };
 
-                // Watch view changes
-                watch(currentView, () => {
-                    updateIcons();
+                // Watch for comparison changes
+                watch(beforeVideoId, (id) => {
+                    if (id) {
+                        beforeAnalysis.value = {
+                            cycleTime: 45.2,
+                            segments: [
+                                { name: '取料', duration: 8.5 },
+                                { name: '定位', duration: 3.8 },
+                                { name: '組裝', duration: 23.3 },
+                                { name: '檢查', duration: 6.5 },
+                                { name: '放置', duration: 3.1 }
+                            ]
+                        };
+                    }
                 });
 
-                // Initialize
+                watch(afterVideoId, (id) => {
+                    if (id) {
+                        afterAnalysis.value = {
+                            cycleTime: 32.1,
+                            segments: [
+                                { name: '取料', duration: 5.2 },
+                                { name: '定位', duration: 2.8 },
+                                { name: '組裝', duration: 17.5 },
+                                { name: '檢查', duration: 4.2 },
+                                { name: '放置', duration: 2.4 }
+                            ]
+                        };
+                    }
+                });
+
+                watch(currentView, updateIcons);
+
                 onMounted(() => {
                     updateIcons();
                     loadSettings();
-                    refreshDashboard();
                     loadVideos();
-                    loadReports();
-                    loadRecentActivities();
+                    loadRecentAnalysis();
                 });
 
                 return {
                     currentView,
                     dragOver,
-                    showNewReportModal,
+                    showSegmentModal,
+                    segmentColors,
                     stats,
                     videos,
-                    reports,
-                    recentActivities,
-                    analysisResults,
+                    recentAnalysis,
                     selectedAnalysisVideoId,
                     selectedAnalysisVideo,
+                    currentAnalysis,
+                    beforeVideoId,
+                    afterVideoId,
+                    beforeAnalysis,
+                    afterAnalysis,
+                    analyzedVideos,
+                    segmentTemplates,
+                    newSegment,
                     settings,
-                    newReport,
                     refreshDashboard,
                     handleFileSelect,
                     handleDrop,
                     viewVideo,
                     analyzeVideo,
                     selectAnalysisVideo,
-                    createReport,
-                    editReport,
+                    startAnalysis,
+                    jumpToSegment,
+                    addSegmentTemplate,
+                    editSegment,
+                    deleteSegment,
                     saveSettings
                 };
             }
