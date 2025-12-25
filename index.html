@@ -1323,28 +1323,21 @@
                                 : []
                         };
 
-                        // 先停止分析狀態
-                        isAnalyzing.value = false;
+                        // 使用 setTimeout 完全脫離 Vue 的更新循環
+                        setTimeout(() => {
+                            isAnalyzing.value = false;
+                            currentAnalysis.value = results;
 
-                        // 等待 Vue 完成 DOM 更新
-                        await nextTick();
+                            // 更新本地影片狀態
+                            const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
+                            if (videoIdx !== -1) {
+                                videos.value[videoIdx].status = 'analyzed';
+                                videos.value[videoIdx].statusBadge = 'badge-success';
+                            }
 
-                        // 設定分析結果
-                        currentAnalysis.value = results;
-
-                        // 等待 Vue 完成 DOM 更新
-                        await nextTick();
-
-                        // 更新本地影片狀態
-                        const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
-                        if (videoIdx !== -1) {
-                            videos.value[videoIdx].status = 'analyzed';
-                            videos.value[videoIdx].statusBadge = 'badge-success';
-                        }
-
-                        // 更新統計 (不呼叫 updateIcons 避免 DOM 衝突)
-                        await nextTick();
-                        refreshDashboard();
+                            // 延遲更新統計
+                            setTimeout(() => refreshDashboard(), 100);
+                        }, 0);
 
                     } catch (e) {
                         console.error('分析失敗:', e);
