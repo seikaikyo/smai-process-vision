@@ -277,6 +277,9 @@
                                 <button class="btn btn-primary btn-xs" @click="analyzeVideo(video)" :disabled="video.status === 'analyzing'">
                                     <i data-lucide="scan" class="w-3 h-3"></i> 分析
                                 </button>
+                                <button class="btn btn-error btn-xs" @click="deleteVideo(video)">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i> 刪除
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -817,7 +820,7 @@
                     uploadFiles(e.dataTransfer.files);
                 };
 
-                // Upload files to API
+                // Upload files to API (FormData for real file upload)
                 const uploadFiles = async (files) => {
                     if (files.length === 0) return;
 
@@ -831,17 +834,18 @@
                             uploadStatus.value = `上傳中 (${i + 1}/${files.length})...`;
                             uploadProgress.value = Math.round((i / files.length) * 100);
 
+                            // 使用 FormData 上傳真實檔案
+                            const formData = new FormData();
+                            formData.append('file', file);
+
                             const response = await fetch(`${API_BASE}/videos`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    name: file.name,
-                                    size: `${(file.size / 1024 / 1024).toFixed(1)} MB`
-                                })
+                                body: formData
                             });
 
                             if (!response.ok) {
-                                throw new Error(`上傳失敗: ${response.statusText}`);
+                                const errorData = await response.json().catch(() => ({}));
+                                throw new Error(errorData.detail || `上傳失敗: ${response.statusText}`);
                             }
                         }
 
@@ -849,6 +853,7 @@
                         uploadProgress.value = 100;
 
                         await loadVideos();
+                        await refreshDashboard();
 
                         setTimeout(() => {
                             isUploading.value = false;
@@ -889,6 +894,24 @@
                         console.error('分析失敗:', e);
                         video.status = 'error';
                         video.statusBadge = 'badge-error';
+                    }
+                };
+
+                // Delete video via API
+                const deleteVideo = async (video) => {
+                    if (!confirm(`確定要刪除「${video.name}」嗎？此操作無法復原。`)) return;
+
+                    try {
+                        const response = await fetch(`${API_BASE}/videos/${video.id}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            await loadVideos();
+                            await refreshDashboard();
+                        } else {
+                            alert('刪除失敗，請稍後再試');
+                        }
+                    } catch (e) {
+                        console.error('刪除失敗:', e);
+                        alert('刪除失敗，請稍後再試');
                     }
                 };
 
@@ -1076,6 +1099,7 @@
                     handleDrop,
                     viewVideo,
                     analyzeVideo,
+                    deleteVideo,
                     selectAnalysisVideo,
                     startAnalysis,
                     jumpToSegment,
