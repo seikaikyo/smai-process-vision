@@ -367,7 +367,8 @@
             </section>
 
             <!-- Process Analysis -->
-            <section v-if="currentView === 'analysis'" class="animate-fade-in">
+            <!-- 製程拆解 - 重寫版本，避免 Vue DOM 衝突 -->
+            <section v-show="currentView === 'analysis'" class="animate-fade-in">
                 <header class="flex justify-between items-center mb-6">
                     <div>
                         <div class="text-sm breadcrumbs p-0 mb-1">
@@ -376,28 +377,35 @@
                         <h1 class="text-2xl font-bold">製程拆解分析</h1>
                     </div>
                     <button class="btn btn-primary btn-sm" @click="startAnalysis" :disabled="!selectedAnalysisVideoId || isAnalyzing">
-                        <span v-if="isAnalyzing" class="loading loading-spinner loading-xs"></span>
-                        <i v-else data-lucide="play" class="w-4 h-4"></i>
+                        <span v-show="isAnalyzing" class="loading loading-spinner loading-xs"></span>
+                        <svg v-show="!isAnalyzing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         {{ isAnalyzing ? '分析中...' : '開始分析' }}
                     </button>
                 </header>
 
                 <div class="alert alert-info shadow-sm mb-6 bg-info/10 border-info/20">
-                    <i data-lucide="info" class="w-5 h-5"></i>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                     <span>使用 YOLO11 進行物件偵測，自動識別製程動作並計算各段時間</span>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Video Preview -->
+                    <!-- 影片預覽 -->
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body">
                             <h2 class="card-title text-sm font-bold">影片預覽</h2>
-                            <div class="aspect-video bg-base-300 rounded-lg flex items-center justify-center">
-                                <div v-if="!selectedAnalysisVideo" class="text-center opacity-60">
-                                    <i data-lucide="video" class="w-12 h-12 mx-auto mb-2"></i>
+                            <div class="aspect-video bg-base-300 rounded-lg flex items-center justify-center overflow-hidden">
+                                <div v-show="!selectedAnalysisVideo" class="text-center opacity-60">
+                                    <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
                                     <p>請選擇要分析的影片</p>
                                 </div>
-                                <video v-else ref="videoPlayer" :src="selectedAnalysisVideo.url" controls class="w-full h-full rounded-lg"></video>
+                                <video v-show="selectedAnalysisVideo" ref="videoPlayer" :src="selectedAnalysisVideo ? selectedAnalysisVideo.url : ''" controls class="w-full h-full rounded-lg"></video>
                             </div>
                             <select class="select select-bordered w-full mt-4" v-model="selectedAnalysisVideoId" @change="selectAnalysisVideo">
                                 <option value="">-- 選擇影片 --</option>
@@ -406,33 +414,41 @@
                         </div>
                     </div>
 
-                    <!-- Analysis Results -->
+                    <!-- 分析結果 - 永遠渲染，用 CSS 控制顯示 -->
                     <div class="card bg-base-100 shadow-sm border border-base-300">
                         <div class="card-body">
                             <h2 class="card-title text-sm font-bold">分析結果</h2>
-                            <!-- Empty State -->
-                            <div v-if="!showAnalysisResults" class="text-center py-8 opacity-60">
+
+                            <!-- 空狀態 -->
+                            <div v-show="analysisDisplayState === 'empty'" class="text-center py-8 opacity-60">
                                 <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                 </svg>
                                 <p>選擇影片後點擊「開始分析」</p>
                             </div>
-                            <!-- Results - 使用獨立 flag 控制顯示時機 -->
-                            <div v-else>
+
+                            <!-- Loading 狀態 -->
+                            <div v-show="analysisDisplayState === 'loading'" class="text-center py-8">
+                                <span class="loading loading-spinner loading-lg text-primary"></span>
+                                <p class="mt-4 opacity-60">正在分析影片...</p>
+                            </div>
+
+                            <!-- 結果狀態 -->
+                            <div v-show="analysisDisplayState === 'results'">
                                 <div class="stats shadow w-full mb-4">
                                     <div class="stat">
                                         <div class="stat-title">週期時間</div>
-                                        <div class="stat-value text-primary">{{ analysisCycleTime }}s</div>
+                                        <div class="stat-value text-primary">{{ displayCycleTime }}s</div>
                                     </div>
                                     <div class="stat">
                                         <div class="stat-title">分段數</div>
-                                        <div class="stat-value">{{ analysisSegmentCount }}</div>
+                                        <div class="stat-value">{{ displaySegments.length }}</div>
                                     </div>
                                 </div>
 
-                                <!-- Segments List -->
+                                <!-- 分段列表 -->
                                 <div class="space-y-2 max-h-64 overflow-y-auto">
-                                    <div v-for="(seg, idx) in analysisSegments" :key="'seg-'+seg.name+'-'+idx"
+                                    <div v-for="(seg, idx) in displaySegments" :key="'seg-' + idx"
                                          class="flex items-center gap-3 p-2 bg-base-200 rounded-lg cursor-pointer hover:bg-base-300"
                                          @click="jumpToSegment(seg)">
                                         <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
@@ -441,11 +457,11 @@
                                         </div>
                                         <div class="flex-1">
                                             <div class="font-semibold">{{ seg.name }}</div>
-                                            <div class="text-xs opacity-60">{{ (seg.start || 0).toFixed(1) }}s - {{ (seg.end || 0).toFixed(1) }}s</div>
+                                            <div class="text-xs opacity-60">{{ seg.start.toFixed(1) }}s - {{ seg.end.toFixed(1) }}s</div>
                                         </div>
                                         <div class="text-right">
-                                            <div class="font-mono font-bold">{{ (seg.duration || 0).toFixed(1) }}s</div>
-                                            <div class="text-xs opacity-60">{{ getSegmentPercent(seg) }}%</div>
+                                            <div class="font-mono font-bold">{{ seg.duration.toFixed(1) }}s</div>
+                                            <div class="text-xs opacity-60">{{ displayCycleTime > 0 ? Math.round(seg.duration / displayCycleTime * 100) : 0 }}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -454,42 +470,36 @@
                     </div>
                 </div>
 
-                <!-- Segments Timeline -->
-                <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="showAnalysisResults && analysisSegments.length > 0">
+                <!-- 時間軸 - 只在有結果時顯示 -->
+                <div v-show="analysisDisplayState === 'results' && displaySegments.length > 0" class="card bg-base-100 shadow-sm border border-base-300 mt-6">
                     <div class="card-body">
                         <div class="flex justify-between items-center mb-2">
                             <h2 class="card-title text-sm font-bold">製程分段時間軸</h2>
-                            <span class="text-xs opacity-60">拖動分段邊界調整時間</span>
+                            <span class="text-xs opacity-60">點擊分段跳轉影片</span>
                         </div>
                         <div class="segment-bar mt-4" ref="timelineRef">
-                            <div v-for="(seg, idx) in analysisSegments" :key="'tl-'+seg.name+'-'+idx"
-                                 class="segment-item relative"
+                            <div v-for="(seg, idx) in displaySegments" :key="'tl-' + idx"
+                                 class="segment-item"
                                  :style="{
-                                     width: getSegmentPercent(seg) + '%',
+                                     width: (displayCycleTime > 0 ? seg.duration / displayCycleTime * 100 : 0) + '%',
                                      backgroundColor: segmentColors[idx % segmentColors.length]
                                  }"
                                  @click="jumpToSegment(seg)">
                                 <span class="truncate px-1">{{ seg.name }}</span>
-                                <!-- 右側拖動手把 (除了最後一個) -->
-                                <div v-show="idx < analysisSegments.length - 1"
-                                     class="segment-resize-handle right"
-                                     @mousedown.stop="startResize($event, idx)"
-                                     @touchstart.stop.prevent="startResize($event, idx)">
-                                </div>
                             </div>
                         </div>
                         <div class="flex justify-between mt-2 text-xs opacity-60">
                             <span>0s</span>
-                            <span>{{ analysisCycleTime }}s</span>
+                            <span>{{ displayCycleTime }}s</span>
                         </div>
-                        <!-- 分段詳細時間 -->
+                        <!-- 分段詳細 -->
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
-                            <div v-for="(seg, idx) in analysisSegments" :key="'detail-'+seg.name+'-'+idx"
+                            <div v-for="(seg, idx) in displaySegments" :key="'detail-' + idx"
                                  class="flex items-center gap-2 text-xs">
                                 <div class="w-3 h-3 rounded-full shrink-0"
                                      :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }"></div>
                                 <span class="truncate">{{ seg.name }}</span>
-                                <span class="font-mono ml-auto">{{ (seg.duration || 0).toFixed(1) }}s</span>
+                                <span class="font-mono ml-auto">{{ seg.duration.toFixed(1) }}s</span>
                             </div>
                         </div>
                     </div>
@@ -964,9 +974,17 @@
                 const uploadProgress = ref(0);
                 const currentUploadingFile = ref('');
 
-                // Analysis state
+                // Analysis state - 簡化版
                 const isAnalyzing = ref(false);
-                const showAnalysisResults = ref(false);  // 延遲顯示結果避免 DOM 衝突
+                const displaySegments = ref([]);  // 顯示用的分段資料
+                const displayCycleTime = ref(0);  // 顯示用的週期時間
+
+                // 計算顯示狀態
+                const analysisDisplayState = computed(() => {
+                    if (isAnalyzing.value) return 'loading';
+                    if (displaySegments.value.length > 0) return 'results';
+                    return 'empty';
+                });
 
                 // Segment list ref for drag & drop
                 const segmentListRef = ref(null);
@@ -1289,17 +1307,18 @@
 
                 const selectAnalysisVideo = () => {
                     selectedAnalysisVideo.value = videos.value.find(v => v.id === selectedAnalysisVideoId.value);
-                    // 清除結果時先隱藏再清除
-                    showAnalysisResults.value = false;
-                    currentAnalysis.value = null;
+                    // 清除顯示資料
+                    displaySegments.value = [];
+                    displayCycleTime.value = 0;
                 };
 
-                // Start analysis via API
+                // Start analysis via API - 簡化版
                 const startAnalysis = async () => {
                     if (!selectedAnalysisVideoId.value) return;
 
-                    // 先隱藏舊結果
-                    showAnalysisResults.value = false;
+                    // 清除舊資料並顯示 loading
+                    displaySegments.value = [];
+                    displayCycleTime.value = 0;
                     isAnalyzing.value = true;
 
                     try {
@@ -1307,57 +1326,44 @@
                             method: 'POST'
                         });
 
-                        if (!response.ok) {
-                            throw new Error('API error');
-                        }
+                        if (!response.ok) throw new Error('API error');
 
                         const data = await response.json();
                         if (!data.success || !data.data || !data.data.results) {
                             throw new Error('Invalid response');
                         }
 
-                        // 準備分析結果
+                        // 停止 loading
+                        isAnalyzing.value = false;
+
+                        // 準備分段資料
                         const segments = Array.isArray(data.data.results.segments)
                             ? data.data.results.segments.map(s => ({
-                                name: s.name || '',
+                                name: String(s.name || ''),
                                 start: Number(s.start) || 0,
                                 end: Number(s.end) || 0,
                                 duration: Number(s.duration) || 0
                             }))
                             : [];
 
-                        const results = {
-                            cycleTime: Number(data.data.results.cycle_time) || 0,
-                            segments: segments
-                        };
+                        // 設定顯示資料
+                        displayCycleTime.value = Number(data.data.results.cycle_time) || 0;
+                        displaySegments.value = segments;
 
-                        // Step 1: 停止 loading
-                        isAnalyzing.value = false;
+                        // 更新影片狀態
+                        const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
+                        if (videoIdx !== -1) {
+                            videos.value[videoIdx].status = 'analyzed';
+                            videos.value[videoIdx].statusBadge = 'badge-success';
+                        }
 
-                        // Step 2: 設定資料（但還不顯示）
-                        currentAnalysis.value = results;
-
-                        // Step 3: 等待 Vue 處理完資料變更
-                        await nextTick();
-
-                        // Step 4: 延遲顯示結果，讓 DOM 穩定
-                        setTimeout(() => {
-                            showAnalysisResults.value = true;
-
-                            // 更新本地影片狀態
-                            const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
-                            if (videoIdx !== -1) {
-                                videos.value[videoIdx].status = 'analyzed';
-                                videos.value[videoIdx].statusBadge = 'badge-success';
-                            }
-
-                            // 更新統計
-                            refreshDashboard();
-                        }, 50);
+                        // 更新統計
+                        refreshDashboard();
 
                     } catch (e) {
                         console.error('分析失敗:', e);
                         isAnalyzing.value = false;
+                        alert('分析失敗，請稍後再試');
                     }
                 };
 
@@ -1762,9 +1768,11 @@
                     uploadStatus,
                     uploadProgress,
                     currentUploadingFile,
-                    // Analysis
+                    // Analysis - 簡化版
                     isAnalyzing,
-                    showAnalysisResults,
+                    displaySegments,
+                    displayCycleTime,
+                    analysisDisplayState,
                     // Segment drag
                     segmentListRef,
                     // Timeline resize
