@@ -475,8 +475,13 @@
                                     <button class="btn btn-outline btn-sm flex-1" @click="addAnalysisSegment">
                                         <i data-lucide="plus" class="w-4 h-4"></i> 新增分段
                                     </button>
+                                    <button v-show="hasSegmentChanges" class="btn btn-primary btn-sm" @click="saveAnalysisCorrection" :disabled="isSavingCorrection">
+                                        <span v-if="isSavingCorrection" class="loading loading-spinner loading-xs"></span>
+                                        <i v-else data-lucide="save" class="w-4 h-4"></i>
+                                        儲存修正
+                                    </button>
                                     <button v-show="hasSegmentChanges" class="btn btn-ghost btn-sm" @click="resetAnalysisSegments" title="重置為原始分析結果">
-                                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 重置
+                                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1583,6 +1588,40 @@
                     displayCycleTime.value = originalCycleTime.value;
                 };
 
+                // 儲存修正到資料庫
+                const isSavingCorrection = ref(false);
+                const saveAnalysisCorrection = async () => {
+                    if (!selectedAnalysisVideoId.value || !hasSegmentChanges.value) return;
+
+                    isSavingCorrection.value = true;
+                    try {
+                        const response = await fetch(`${API_BASE}/videos/${selectedAnalysisVideoId.value}/analysis`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                cycleTime: displayCycleTime.value,
+                                segments: displaySegments.value
+                            })
+                        });
+
+                        if (!response.ok) throw new Error('API error');
+
+                        const data = await response.json();
+                        if (data.success) {
+                            // 更新原始值為目前值 (已儲存)
+                            originalSegments.value = JSON.parse(JSON.stringify(displaySegments.value));
+                            originalCycleTime.value = displayCycleTime.value;
+                            alert('修正已儲存');
+                        }
+                    } catch (e) {
+                        console.error('儲存失敗:', e);
+                        alert('儲存失敗，請稍後再試');
+                    } finally {
+                        isSavingCorrection.value = false;
+                        updateIcons();
+                    }
+                };
+
                 // 檢查是否有修改
                 const hasSegmentChanges = computed(() => {
                     if (originalSegments.value.length === 0) return false;
@@ -1959,6 +1998,8 @@
                     handleSegmentSave,
                     resetAnalysisSegments,
                     hasSegmentChanges,
+                    isSavingCorrection,
+                    saveAnalysisCorrection,
                     // Methods
                     refreshDashboard,
                     handleFileSelect,
