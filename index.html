@@ -1114,7 +1114,6 @@
                     if (!selectedAnalysisVideoId.value) return;
 
                     isAnalyzing.value = true;
-                    currentAnalysis.value = null;
 
                     try {
                         const response = await fetch(`${API_BASE}/videos/${selectedAnalysisVideoId.value}/analyze`, {
@@ -1126,8 +1125,10 @@
                             if (data.success && data.data && data.data.results) {
                                 currentAnalysis.value = {
                                     cycleTime: data.data.results.cycle_time,
-                                    segments: data.data.results.segments
+                                    segments: data.data.results.segments || []
                                 };
+                                // 等待 DOM 更新後再載入影片清單
+                                await nextTick();
                                 await loadVideos();
                             }
                         }
