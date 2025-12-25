@@ -872,10 +872,10 @@
 
         </main>
 
-        <!-- New Segment Modal -->
+        <!-- Segment Modal (Add/Edit) -->
         <dialog id="segment_modal" class="modal" :class="{ 'modal-open': showSegmentModal }">
             <div class="modal-box">
-                <h3 class="font-bold text-lg mb-4">新增分段定義</h3>
+                <h3 class="font-bold text-lg mb-4">{{ editingSegmentId ? '編輯分段定義' : '新增分段定義' }}</h3>
                 <div class="space-y-4">
                     <div class="form-control">
                         <label class="label"><span class="label-text">分段名稱</span></label>
@@ -897,11 +897,11 @@
                     </div>
                 </div>
                 <div class="modal-action">
-                    <button class="btn" @click="showSegmentModal = false">取消</button>
-                    <button class="btn btn-primary" @click="addSegmentTemplate">新增</button>
+                    <button class="btn" @click="closeSegmentModal">取消</button>
+                    <button class="btn btn-primary" @click="saveSegmentTemplate">{{ editingSegmentId ? '儲存' : '新增' }}</button>
                 </div>
             </div>
-            <form method="dialog" class="modal-backdrop" @click="showSegmentModal = false">
+            <form method="dialog" class="modal-backdrop" @click="closeSegmentModal">
                 <button>close</button>
             </form>
         </dialog>
@@ -945,7 +945,7 @@
     </div>
 
     <script>
-        const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+        const { createApp, ref, shallowRef, reactive, computed, onMounted, nextTick, watch, triggerRef } = Vue;
 
         const API_BASE = 'https://smai-mcp-center.onrender.com/api/aoi';
 
@@ -955,6 +955,7 @@
                 const sidebarOpen = ref(false);
                 const dragOver = ref(false);
                 const showSegmentModal = ref(false);
+                const editingSegmentId = ref(null);  // null = 新增, 有值 = 編輯
                 const apiStatus = ref('unknown');
 
                 // Upload state
@@ -995,7 +996,7 @@
                 const segmentTemplates = ref([]);
                 const selectedAnalysisVideoId = ref('');
                 const selectedAnalysisVideo = ref(null);
-                const currentAnalysis = ref(null);
+                const currentAnalysis = shallowRef(null);
                 const beforeVideoId = ref('');
                 const afterVideoId = ref('');
                 const beforeAnalysis = ref(null);
@@ -1310,34 +1311,39 @@
                             throw new Error('Invalid response');
                         }
 
-                        // 準備分析結果
-                        const results = {
+                        // 準備分析結果 - 使用 Object.freeze 避免深層響應式
+                        const segments = Array.isArray(data.data.results.segments)
+                            ? data.data.results.segments.map(s => Object.freeze({
+                                name: s.name || '',
+                                start: Number(s.start) || 0,
+                                end: Number(s.end) || 0,
+                                duration: Number(s.duration) || 0
+                            }))
+                            : [];
+
+                        const results = Object.freeze({
                             cycleTime: Number(data.data.results.cycle_time) || 0,
-                            segments: Array.isArray(data.data.results.segments)
-                                ? data.data.results.segments.map(s => ({
-                                    name: s.name || '',
-                                    start: Number(s.start) || 0,
-                                    end: Number(s.end) || 0,
-                                    duration: Number(s.duration) || 0
-                                }))
-                                : []
-                        };
+                            segments: Object.freeze(segments)
+                        });
 
-                        // 使用 setTimeout 完全脫離 Vue 的更新循環
-                        setTimeout(() => {
-                            isAnalyzing.value = false;
-                            currentAnalysis.value = results;
+                        // 先設定 isAnalyzing，等 DOM 穩定後再設定結果
+                        isAnalyzing.value = false;
+                        await nextTick();
 
-                            // 更新本地影片狀態
-                            const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
-                            if (videoIdx !== -1) {
-                                videos.value[videoIdx].status = 'analyzed';
-                                videos.value[videoIdx].statusBadge = 'badge-success';
-                            }
+                        // 設定結果
+                        currentAnalysis.value = results;
+                        triggerRef(currentAnalysis);
 
-                            // 延遲更新統計
-                            setTimeout(() => refreshDashboard(), 100);
-                        }, 0);
+                        // 更新本地影片狀態
+                        const videoIdx = videos.value.findIndex(v => v.id === selectedAnalysisVideoId.value);
+                        if (videoIdx !== -1) {
+                            videos.value[videoIdx].status = 'analyzed';
+                            videos.value[videoIdx].statusBadge = 'badge-success';
+                        }
+
+                        // 延遲更新統計
+                        await nextTick();
+                        refreshDashboard();
 
                     } catch (e) {
                         console.error('分析失敗:', e);
@@ -1393,11 +1399,17 @@
                     }
                 };
 
-                // Add segment template via API
-                const addSegmentTemplate = async () => {
+                // Add or update segment template via API
+                const saveSegmentTemplate = async () => {
+                    const isEditing = !!editingSegmentId.value;
+
                     try {
-                        const response = await fetch(`${API_BASE}/pv/segments`, {
-                            method: 'POST',
+                        const url = isEditing
+                            ? `${API_BASE}/pv/segments/${editingSegmentId.value}`
+                            : `${API_BASE}/pv/segments`;
+
+                        const response = await fetch(url, {
+                            method: isEditing ? 'PUT' : 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 name: newSegment.name,
@@ -1409,20 +1421,32 @@
 
                         if (response.ok) {
                             await loadSegmentTemplates();
-                            showSegmentModal.value = false;
-                            newSegment.name = '';
-                            newSegment.standardTime = 5;
-                            newSegment.tolerance = 1;
-                            newSegment.keyActionsText = '';
+                            closeSegmentModal();
+                        } else {
+                            console.error('儲存失敗:', await response.text());
                         }
                     } catch (e) {
-                        console.error('新增分段失敗:', e);
+                        console.error('儲存分段失敗:', e);
                     }
                 };
 
+                const closeSegmentModal = () => {
+                    showSegmentModal.value = false;
+                    editingSegmentId.value = null;
+                    newSegment.name = '';
+                    newSegment.standardTime = 5;
+                    newSegment.tolerance = 1;
+                    newSegment.keyActionsText = '';
+                };
+
                 const editSegment = (seg) => {
-                    // TODO: Implement edit modal
-                    console.log('Edit segment:', seg.name);
+                    // 填入表單資料
+                    editingSegmentId.value = seg.id;
+                    newSegment.name = seg.name;
+                    newSegment.standardTime = seg.standardTime || 5;
+                    newSegment.tolerance = seg.tolerance || 1;
+                    newSegment.keyActionsText = Array.isArray(seg.keyActions) ? seg.keyActions.join(', ') : '';
+                    showSegmentModal.value = true;
                 };
 
                 // Delete segment via API
@@ -1691,6 +1715,9 @@
                     sidebarOpen,
                     dragOver,
                     showSegmentModal,
+                    editingSegmentId,
+                    closeSegmentModal,
+                    saveSegmentTemplate,
                     showCompressModal,
                     oversizedFileName,
                     oversizedFileSize,
