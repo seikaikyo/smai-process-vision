@@ -8,6 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         [v-cloak] { display: none; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
@@ -43,6 +44,52 @@
         }
         .segment-item:hover {
             opacity: 0.85;
+        }
+        /* 拖拉排序樣式 */
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #3b82f6 !important;
+        }
+        .sortable-drag {
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        /* 時間軸拖拉樣式 */
+        .segment-resize-handle {
+            position: absolute;
+            top: -4px;
+            bottom: -4px;
+            width: 12px;
+            cursor: ew-resize;
+            background: rgba(255,255,255,0.4);
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+            border-radius: 2px;
+        }
+        .segment-resize-handle:hover,
+        .segment-resize-handle.active {
+            opacity: 1;
+            background: rgba(255,255,255,0.8);
+        }
+        .segment-resize-handle.left { left: -6px; }
+        .segment-resize-handle.right { right: -6px; }
+        .segment-item:hover .segment-resize-handle {
+            opacity: 0.6;
+        }
+        /* 觸控裝置顯示 handle */
+        @media (hover: none) {
+            .segment-resize-handle {
+                opacity: 0.5;
+                width: 16px;
+            }
+            .segment-resize-handle.right { right: -8px; }
         }
     </style>
 </head>
@@ -377,21 +424,40 @@
                 <!-- Segments Timeline -->
                 <div class="card bg-base-100 shadow-sm border border-base-300 mt-6" v-if="currentAnalysis">
                     <div class="card-body">
-                        <h2 class="card-title text-sm font-bold">製程分段時間軸</h2>
-                        <div class="segment-bar mt-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h2 class="card-title text-sm font-bold">製程分段時間軸</h2>
+                            <span class="text-xs opacity-60">拖動分段邊界調整時間</span>
+                        </div>
+                        <div class="segment-bar mt-4" ref="timelineRef">
                             <div v-for="(seg, idx) in currentAnalysis.segments" :key="idx"
-                                 class="segment-item"
+                                 class="segment-item relative"
                                  :style="{
                                      width: ((seg.duration / currentAnalysis.cycleTime) * 100) + '%',
                                      backgroundColor: segmentColors[idx % segmentColors.length]
                                  }"
                                  @click="jumpToSegment(seg)">
-                                {{ seg.name }}
+                                <span class="truncate px-1">{{ seg.name }}</span>
+                                <!-- 右側拖動手把 (除了最後一個) -->
+                                <div v-if="idx < currentAnalysis.segments.length - 1"
+                                     class="segment-resize-handle right"
+                                     @mousedown.stop="startResize($event, idx)"
+                                     @touchstart.stop.prevent="startResize($event, idx)">
+                                </div>
                             </div>
                         </div>
                         <div class="flex justify-between mt-2 text-xs opacity-60">
                             <span>0s</span>
                             <span>{{ currentAnalysis.cycleTime }}s</span>
+                        </div>
+                        <!-- 分段詳細時間 -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                            <div v-for="(seg, idx) in currentAnalysis.segments" :key="'time-'+idx"
+                                 class="flex items-center gap-2 text-xs">
+                                <div class="w-3 h-3 rounded-full shrink-0"
+                                     :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }"></div>
+                                <span class="truncate">{{ seg.name }}</span>
+                                <span class="font-mono ml-auto">{{ seg.duration.toFixed(1) }}s</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -412,50 +478,51 @@
                 </header>
 
                 <div class="alert alert-info shadow-sm mb-6 bg-info/10 border-info/20">
-                    <i data-lucide="info" class="w-5 h-5"></i>
-                    <span>定義標準製程分段，用於自動識別與比對分析</span>
+                    <i data-lucide="grip-vertical" class="w-5 h-5"></i>
+                    <span>拖拉調整分段順序，定義標準製程分段用於自動識別與比對分析</span>
                 </div>
 
-                <!-- Segment Templates -->
+                <!-- Segment Templates - Draggable Cards -->
                 <div class="card bg-base-100 shadow-sm border border-base-300">
-                    <div class="overflow-x-auto">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>順序</th>
-                                    <th>分段名稱</th>
-                                    <th>標準時間</th>
-                                    <th>容許範圍</th>
-                                    <th>關鍵動作</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(seg, idx) in segmentTemplates" :key="seg.id">
-                                    <td>
-                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                                             :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }">
-                                            {{ idx + 1 }}
-                                        </div>
-                                    </td>
-                                    <td class="font-semibold">{{ seg.name }}</td>
-                                    <td class="font-mono">{{ seg.standardTime }}s</td>
-                                    <td class="text-xs">+/- {{ seg.tolerance }}s</td>
-                                    <td class="text-xs opacity-60">{{ seg.keyActions ? seg.keyActions.join(', ') : '' }}</td>
-                                    <td>
-                                        <button class="btn btn-ghost btn-xs" @click="editSegment(seg)">
-                                            <i data-lucide="edit" class="w-3 h-3"></i>
-                                        </button>
-                                        <button class="btn btn-ghost btn-xs text-error" @click="deleteSegment(seg)">
-                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr v-if="segmentTemplates.length === 0">
-                                    <td colspan="6" class="text-center opacity-60">尚無分段定義</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="card-body p-4">
+                        <div ref="segmentListRef" class="space-y-2">
+                            <div v-for="(seg, idx) in segmentTemplates" :key="seg.id"
+                                 :data-id="seg.id"
+                                 class="flex items-center gap-2 md:gap-4 p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors">
+                                <!-- 拖拉把手 -->
+                                <div class="drag-handle text-base-content/40 hover:text-base-content touch-none">
+                                    <i data-lucide="grip-vertical" class="w-5 h-5"></i>
+                                </div>
+                                <!-- 順序編號 -->
+                                <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-xs md:text-sm font-bold shrink-0"
+                                     :style="{ backgroundColor: segmentColors[idx % segmentColors.length] }">
+                                    {{ idx + 1 }}
+                                </div>
+                                <!-- 分段資訊 -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-sm md:text-base truncate">{{ seg.name }}</div>
+                                    <div class="text-xs opacity-60 truncate">
+                                        {{ seg.standardTime }}s +/- {{ seg.tolerance }}s
+                                        <span v-if="seg.keyActions && seg.keyActions.length" class="hidden sm:inline">
+                                            | {{ seg.keyActions.join(', ') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <!-- 操作按鈕 -->
+                                <div class="flex gap-1 shrink-0">
+                                    <button class="btn btn-ghost btn-xs" @click="editSegment(seg)">
+                                        <i data-lucide="edit" class="w-3 h-3"></i>
+                                    </button>
+                                    <button class="btn btn-ghost btn-xs text-error" @click="deleteSegment(seg)">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="segmentTemplates.length === 0" class="text-center py-8 opacity-60">
+                                <i data-lucide="layers" class="w-12 h-12 mx-auto mb-2"></i>
+                                <p>尚無分段定義，點擊右上角新增</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -705,7 +772,7 @@
     </div>
 
     <script>
-        const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
+        const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
 
         const API_BASE = 'https://smai-mcp-center.onrender.com/api/aoi';
 
@@ -724,6 +791,17 @@
 
                 // Analysis state
                 const isAnalyzing = ref(false);
+
+                // Segment list ref for drag & drop
+                const segmentListRef = ref(null);
+                let sortableInstance = null;
+
+                // Timeline resize refs
+                const timelineRef = ref(null);
+                let isResizing = false;
+                let resizeSegmentIdx = -1;
+                let resizeStartX = 0;
+                let resizeStartWidth = 0;
 
                 // Segment colors
                 const segmentColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
@@ -1130,6 +1208,124 @@
                     }
                 };
 
+                // Initialize Sortable for segment list
+                const initSortable = () => {
+                    if (sortableInstance) {
+                        sortableInstance.destroy();
+                        sortableInstance = null;
+                    }
+
+                    if (segmentListRef.value && segmentTemplates.value.length > 0) {
+                        sortableInstance = new Sortable(segmentListRef.value, {
+                            animation: 150,
+                            handle: '.drag-handle',
+                            ghostClass: 'sortable-ghost',
+                            dragClass: 'sortable-drag',
+                            onEnd: async (evt) => {
+                                if (evt.oldIndex === evt.newIndex) return;
+
+                                // 更新本地順序
+                                const item = segmentTemplates.value.splice(evt.oldIndex, 1)[0];
+                                segmentTemplates.value.splice(evt.newIndex, 0, item);
+
+                                // 呼叫 API 更新順序
+                                await updateSegmentOrder();
+                                updateIcons();
+                            }
+                        });
+                    }
+                };
+
+                // Update segment order via API
+                const updateSegmentOrder = async () => {
+                    try {
+                        const orderData = segmentTemplates.value.map((seg, idx) => ({
+                            id: seg.id,
+                            sort_order: idx
+                        }));
+
+                        const response = await fetch(`${API_BASE}/pv/segments/reorder`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ segments: orderData })
+                        });
+
+                        if (!response.ok) {
+                            console.error('更新順序失敗');
+                            // 重新載入以還原
+                            await loadSegmentTemplates();
+                        }
+                    } catch (e) {
+                        console.error('更新順序失敗:', e);
+                        await loadSegmentTemplates();
+                    }
+                };
+
+                // Timeline resize handlers
+                const startResize = (e, segmentIdx) => {
+                    if (!currentAnalysis.value || !timelineRef.value) return;
+
+                    isResizing = true;
+                    resizeSegmentIdx = segmentIdx;
+                    resizeStartX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+
+                    // 計算 timeline 總寬度
+                    const timelineWidth = timelineRef.value.offsetWidth;
+
+                    // 加入事件監聽
+                    document.addEventListener('mousemove', doResize);
+                    document.addEventListener('mouseup', endResize);
+                    document.addEventListener('touchmove', doResize, { passive: false });
+                    document.addEventListener('touchend', endResize);
+                    document.body.style.cursor = 'ew-resize';
+                    document.body.style.userSelect = 'none';
+                };
+
+                const doResize = (e) => {
+                    if (!isResizing || resizeSegmentIdx < 0 || !currentAnalysis.value || !timelineRef.value) return;
+
+                    e.preventDefault();
+                    const currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                    const deltaX = currentX - resizeStartX;
+                    resizeStartX = currentX;
+
+                    const timelineWidth = timelineRef.value.offsetWidth;
+                    const cycleTime = currentAnalysis.value.cycleTime;
+
+                    // 轉換像素差距為時間差距
+                    const deltaTime = (deltaX / timelineWidth) * cycleTime;
+
+                    const segments = currentAnalysis.value.segments;
+                    const current = segments[resizeSegmentIdx];
+                    const next = segments[resizeSegmentIdx + 1];
+
+                    if (!current || !next) return;
+
+                    // 計算新的時長，限制最小 0.5 秒
+                    const newCurrentDuration = current.duration + deltaTime;
+                    const newNextDuration = next.duration - deltaTime;
+
+                    if (newCurrentDuration >= 0.5 && newNextDuration >= 0.5) {
+                        current.duration = Math.round(newCurrentDuration * 10) / 10;
+                        current.end = Math.round((current.start + current.duration) * 10) / 10;
+
+                        next.duration = Math.round(newNextDuration * 10) / 10;
+                        next.start = current.end;
+                    }
+                };
+
+                const endResize = () => {
+                    isResizing = false;
+                    resizeSegmentIdx = -1;
+
+                    document.removeEventListener('mousemove', doResize);
+                    document.removeEventListener('mouseup', endResize);
+                    document.removeEventListener('touchmove', doResize);
+                    document.removeEventListener('touchend', endResize);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                };
+
                 const saveSettings = () => {
                     localStorage.setItem('pv_settings', JSON.stringify(settings));
                     alert('設定已儲存');
@@ -1149,6 +1345,23 @@
                     await loadRecentAnalysis();
                     await loadSegmentTemplates();
                 });
+
+                // Watch for view changes to initialize Sortable
+                watch(currentView, async (newView) => {
+                    if (newView === 'segments') {
+                        await nextTick();
+                        initSortable();
+                    }
+                    updateIcons();
+                });
+
+                // Watch for segment templates changes
+                watch(segmentTemplates, async () => {
+                    if (currentView.value === 'segments') {
+                        await nextTick();
+                        initSortable();
+                    }
+                }, { deep: true });
 
                 return {
                     currentView,
@@ -1180,6 +1393,11 @@
                     currentUploadingFile,
                     // Analysis
                     isAnalyzing,
+                    // Segment drag
+                    segmentListRef,
+                    // Timeline resize
+                    timelineRef,
+                    startResize,
                     // Methods
                     refreshDashboard,
                     handleFileSelect,
