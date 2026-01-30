@@ -1,0 +1,27 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#fff8e1', 'primaryTextColor': '#f57f17', 'primaryBorderColor': '#ffc107', 'lineColor': '#ff9800'}}}%%
+flowchart TB
+    subgraph SOURCES["資料來源"]
+        direction LR
+        S1["VisionAI<br/>推論結果"]
+        S2["MES<br/>生產數據"]
+        S3["ERP<br/>工單"]
+        S4["Sensor<br/>設備"]
+    end
+
+    subgraph PLATFORM["WISE-IoTSuite 數據中台"]
+        direction LR
+        P1["IoT Edge<br/>MQTT"] --> P2["時序 DB"]
+        P2 --> P3["DataInsight<br/>ETL"]
+        P3 --> P4["主題 DB"]
+    end
+
+    subgraph OUTPUT["輸出應用"]
+        direction LR
+        O1["Dashboard"]
+        O2["Process Vision"]
+        O3["REST API"]
+    end
+
+    S1 -->|MQTT| P1
+    S2 & S3 & S4 -->|API| P3
+    P4 --> O1 & O2 & O3

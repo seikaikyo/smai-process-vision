@@ -1,0 +1,47 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f3e5f5', 'primaryTextColor': '#4a148c', 'primaryBorderColor': '#9c27b0', 'lineColor': '#9c27b0'}}}%%
+flowchart TB
+    subgraph MAC["Mac 設備比較"]
+        direction LR
+
+        subgraph MINI["Mac mini M4"]
+            M1_CPU["10 核 CPU"]
+            M1_GPU["10 核 GPU"]
+            M1_MEM["最高 32GB"]
+            M1_PRICE["NT$ 19,900 起"]
+            M1_USE["適合: Web Server"]
+        end
+
+        subgraph STUDIO_MAX["Mac Studio M2 Max ⭐推薦"]
+            M2_CPU["12 核 CPU"]
+            M2_GPU["38 核 GPU"]
+            M2_MEM["最高 96GB"]
+            M2_PRICE["NT$ 63,900 起"]
+            M2_USE["適合: 分析 + 訓練"]
+        end
+
+        subgraph STUDIO_ULTRA["Mac Studio M2 Ultra"]
+            M3_CPU["24 核 CPU"]
+            M3_GPU["76 核 GPU"]
+            M3_MEM["最高 192GB"]
+            M3_PRICE["NT$ 129,900 起"]
+            M3_USE["適合: 大規模訓練"]
+        end
+    end
+
+    subgraph EDGE["VisionAI Edge 比較"]
+        direction LR
+
+        subgraph E730["MIC-730AI"]
+            E1_GPU["AGX Xavier<br/>512 CUDA"]
+            E1_MEM["32GB RAM"]
+            E1_CAP["6-8 路 1080p"]
+            E1_PRICE["NT$ 150,000"]
+        end
+
+        subgraph E720["MIC-720AI"]
+            E2_GPU["Xavier NX<br/>384 CUDA"]
+            E2_MEM["8GB RAM"]
+            E2_CAP["3-4 路 1080p"]
+            E2_PRICE["NT$ 80,000"]
+        end
+    end

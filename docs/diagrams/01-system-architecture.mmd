@@ -1,0 +1,39 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#0288d1', 'secondaryColor': '#fff3e0', 'tertiaryColor': '#f3e5f5'}}}%%
+flowchart TB
+    subgraph OT["OT 網路 (工廠現場)"]
+        CAM["IPCam × 20 台<br/>1080p @ 30fps"]
+        SW["工業級 PoE 交換機"]
+
+        subgraph EDGE["VisionAI Edge 設備"]
+            E1["MIC-730AI #1<br/>6 路攝影機<br/>關鍵工站 A"]
+            E2["MIC-730AI #2<br/>6 路攝影機<br/>關鍵工站 B"]
+            E3["MIC-720AI #3<br/>4 路攝影機<br/>一般工站 C"]
+            E4["MIC-720AI #4<br/>4 路攝影機<br/>一般工站 D"]
+        end
+    end
+
+    subgraph IT["IT 網路 (機房)"]
+        subgraph IOT["WISE-IoTSuite 數據中台"]
+            MQTT["MQTT Broker"]
+            TSDB["時序資料庫"]
+            DI["DataInsight<br/>ETL 服務"]
+            DASH["Dashboard"]
+        end
+
+        subgraph MAC["Mac 分析伺服器"]
+            STUDIO["Mac Studio M2 Max<br/>64GB RAM"]
+            PV["Process Vision<br/>Web App"]
+            YOLO["YOLO 訓練<br/>CoreML/MLX"]
+            DB["PostgreSQL"]
+        end
+    end
+
+    CAM -->|RTSP| SW
+    SW --> E1 & E2 & E3 & E4
+    E1 & E2 & E3 & E4 -->|MQTT| MQTT
+    MQTT --> TSDB
+    TSDB --> DI
+    DI --> DASH
+    TSDB -->|REST API| STUDIO
+    STUDIO --> PV & YOLO & DB
+    YOLO -.->|模型部署| E1 & E2 & E3 & E4

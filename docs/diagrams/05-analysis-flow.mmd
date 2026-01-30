@@ -1,0 +1,25 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e3f2fd', 'primaryTextColor': '#0d47a1', 'primaryBorderColor': '#2196f3', 'lineColor': '#2196f3'}}}%%
+flowchart LR
+    subgraph INPUT["1. 輸入"]
+        A1["上傳影片"] --> A2["Cloudinary<br/>儲存"]
+    end
+
+    subgraph PROCESS["2. AI 處理"]
+        B1["下載影片"] --> B2["每 5 幀<br/>擷取"]
+        B2 --> B3["YOLO<br/>物件偵測"]
+        B3 --> B4["場景變化<br/>偵測"]
+    end
+
+    subgraph SEGMENT["3. 分段判定"]
+        C1["邊界<br/>判定"] --> C2["類型<br/>分類"]
+        C2 --> C3["週期時間<br/>計算"]
+    end
+
+    subgraph OUTPUT["4. 輸出"]
+        D1["儲存<br/>結果"] --> D2["更新<br/>學習統計"]
+        D2 --> D3["完成"]
+    end
+
+    A2 --> B1
+    B4 --> C1
+    C3 --> D1

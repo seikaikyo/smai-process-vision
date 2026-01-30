@@ -1,0 +1,25 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'primaryTextColor': '#1b5e20', 'primaryBorderColor': '#4caf50', 'lineColor': '#4caf50'}}}%%
+flowchart TB
+    subgraph REALTIME["即時分析流程 < 100ms"]
+        R1["IPCam"] --> R2["VisionAI Edge<br/>TensorRT 推論"]
+        R2 --> R3["JSON 結果"]
+        R3 --> R4["MQTT"]
+        R4 --> R5["IoTSuite<br/>時序 DB"]
+    end
+
+    subgraph BATCH["批次分析流程"]
+        B1["錄影檔"] --> B2["Mac Studio<br/>CoreML/YOLO"]
+        B2 --> B3["分析結果"]
+        B3 --> B4["REST API"]
+        B4 --> B5["IoTSuite"]
+    end
+
+    subgraph LEARN["學習統計流程"]
+        L1["時序 DB"] --> L2["DataInsight<br/>ETL"]
+        L3["分析結果"] --> L2
+        L2 --> L4["主題資料庫"]
+        L4 --> L5["Dashboard<br/>報表"]
+    end
+
+    R5 -.-> L1
+    B3 -.-> L3

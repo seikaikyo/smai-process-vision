@@ -1,0 +1,36 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#fce4ec', 'primaryTextColor': '#880e4f', 'primaryBorderColor': '#e91e63', 'lineColor': '#e91e63'}}}%%
+flowchart TB
+    subgraph EDGE["VisionAI Edge (MIC-730AI)"]
+        direction TB
+
+        subgraph INPUT["影像輸入"]
+            C1["CAM-01"]
+            C2["CAM-02"]
+            C3["CAM-03"]
+            C4["..."]
+            C5["CAM-06"]
+        end
+
+        subgraph PROCESS["AI 處理"]
+            DEC["影像解碼<br/>H.264/H.265"]
+            PRE["前處理<br/>Resize 640×640"]
+            INF["YOLO 推論<br/>TensorRT"]
+            POST["後處理<br/>NMS"]
+        end
+
+        subgraph OUTPUT["輸出"]
+            JSON["JSON 結果"]
+            MQTT["MQTT 發送"]
+            LOG["本地日誌"]
+        end
+    end
+
+    C1 & C2 & C3 & C4 & C5 --> DEC
+    DEC --> PRE --> INF --> POST
+    POST --> JSON --> MQTT & LOG
+
+    subgraph SPEC["硬體規格"]
+        GPU["Jetson AGX Xavier<br/>512 CUDA + 64 Tensor"]
+        MEM["32GB RAM"]
+        PERF["6-8 路 1080p<br/>< 50ms 延遲"]
+    end
